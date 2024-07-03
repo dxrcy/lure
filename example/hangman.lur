@@ -1,6 +1,5 @@
 use std
 
-#: {string} -> int | never
 func main(args)
     println("=== HANGMAN ===")
 
@@ -83,6 +82,32 @@ func main(args)
     end
 end
 
+#: string -> { string } | nil
+func read_file_lines(filename)
+    let err, file = io.open(filename, "r")
+    if err /= nil then
+        return nil
+    end
+
+    let lines = {}
+    while true do
+        let err, line = file.read_line()
+        if err /= nil then
+            return nil
+        end
+        if line == nil then
+            break
+        end
+        if line[-1] == '\r' then
+            line = line.slice(0, -1)
+        end
+        lines[len(lines)] = line
+    end
+    file.close()
+
+    return lines
+end
+
 #: { char:bool } -> void
 func print_set(set)
     for i, ch in set do
@@ -93,3 +118,4 @@ func print_set(set)
     end
     println()
 end
+

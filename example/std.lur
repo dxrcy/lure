@@ -109,6 +109,21 @@ module io
         #: int
         handle
         # a buffer or something ideally...
+
+        #: (File) -> Error|nil
+        func close(self)
+            let err = core.close(self.handle)
+            return result_from(err)
+        end
+
+        #: (File) -> Error|nil, string|nil
+        func read_line(self)
+            let err, line = core.read_line(self.handle)
+            if err == nil then
+                return result_from(err), nil
+            end
+            return nil, line
+        end
     }
 
     ## I/O error
@@ -119,7 +134,8 @@ module io
         message,
     }
 
-    # Convert an error code to an Error
+    # Move to `Error.from`
+    ## Convert an error code to an Error
     #: int -> Error|nil
     func result_from(code)
         let message = match code
@@ -134,12 +150,24 @@ module io
         }
     end
 
+    #: string, string -> Error|nil, File|nil
+    pub func open(path, mode)
+        let err, handle = core.open(path, mode)
+        if err /= nil then
+            return result_from(err), nil
+        end
+        return nil, as File {
+            path = filename,
+            handle = handle
+        }
+    end
+
     ## Write formatted arguments to file, without a newline.
     #: File, string, ..any -> Error|nil
     pub func write(file, fmt, ..args)
         let text = format(fmt, ..args)
-        let code = core.write(file.handle, text)
-        return result_from(code)
+        let err = core.write(file.handle, text)
+        return result_from(err)
     end
 
     ## Write formatted arguments to file, with a newline.

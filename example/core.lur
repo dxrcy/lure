@@ -6,29 +6,28 @@
 #! Only shown here for documentation purposes.
 
 #: int -> never
-pub func exit(code)
-    todo()
-end
+pub func exit(code) end
 
 #: string -> never
-pub func panic(message)
-    todo()
-end
+pub func panic(message) end
 
 #: any -> string
-pub func typeof(value)
-    todo()
-end
+pub func typeof(value) end
+
+#: path, int -> int, int
+pub func open(path, mode) end
+
+#: int -> int
+pub func close(file_handle) end
 
 #: int, text -> int
-pub func write(file_handle, text)
-    todo()
-end
+pub func write(file_handle, text) end
 
 #: int -> int, text
-pub func read(file_handle, length)
-    todo()
-end
+pub func read(file_handle, length) end
+
+#: int -> int, text
+pub func read_line(file_handle) end
 
 # TODO: idk what to do for files...
 
@@ -82,7 +81,5 @@ end
 
 # Used by the `+` operator
 #: a, a -> a
-pub func add(value, other)
-    todo()
-end
+pub func add(value, other) end
 
