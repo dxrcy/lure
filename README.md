@@ -37,7 +37,9 @@ true
 false
 use
 as  ???
-with ???
+match
+case
+where ???
 ```
 
 ## Operators / Special Characters
@@ -59,7 +61,7 @@ with ???
 /
 %
 
-++
+&
 
 =
 +=
@@ -128,6 +130,23 @@ func add_one(x)
     return x + 1
 end
 ```
+
+# Print functions
+
+Similar print/write functions to Rust, with the addition of `log` for debugging.
+
+`write` and `writeln`
+
+Write formatted string to file.
+
+`print` and `println`
+
+Print formatted string to stdout.
+
+`log`
+
+Print each argument to stderr. Separate with space, and end with newline.
+Each argument is converted to a string automatically.
 
 # Types
 

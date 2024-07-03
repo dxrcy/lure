@@ -20,13 +20,13 @@ pub func typeof(value)
     todo()
 end
 
-#: file, text -> int
-pub func write(file, text)
+#: int, text -> int
+pub func write(file_handle, text)
     todo()
 end
 
-#: file -> text | int
-pub func read(file)
+#: int -> int, text
+pub func read(file_handle, length)
     todo()
 end
 
@@ -39,22 +39,40 @@ pub let stdin = 1
 #: int
 pub let stderr = 2
 
+#: any -> int
+pub func len(value)
+    # Something like:
+    match typeof(value)
+        case "null"   then return 0 end
+        case "bool"   then return 0 end
+        case "number" then return 0 end
+        case "char"   then return 1 end
+        case "string" then todo() end
+        case "table" then
+            if value.@len /= null
+                then value.@len()
+                else todo()
+            end
+        end
+    end
+end
+
 #: any -> string
 pub func to_string(value)
     # Something like:
-    match typeof(value) in
-        "null"   do return "null" end
-        "string" do return value end
-        "char"   do todo() end
-        "number" do todo() end
-        "bool" do
+    match typeof(value)
+        case "null"   then return "null" end
+        case "string" then return value end
+        case "char"   then todo() end
+        case "number" then todo() end
+        case "bool" then
             if value 
                 then return "true"
                 else return "false"
             end
         end
-        "table" do
-            if value.@to_string /= nil
+        case "table" then
+            if value.@to_string /= null
                 then value.@to_string()
                 else todo() # Something like `<type@line>`
             end

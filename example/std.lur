@@ -5,6 +5,7 @@
 # Maybe importing core from outside of `std` causes a warning?
 use core
 
+## Automatically imported items
 pub module prelude
     # (inherit type signature and doc comments)
 
@@ -18,8 +19,9 @@ pub module prelude
 
     pub func typeof = reflection.typeof
 
-    pub func format = format
     pub func len = len
+    pub func to_string = to_string
+    pub func format = format
 end
 
 # The `..` operator is used for variadic arguments.
@@ -28,12 +30,15 @@ end
 # Passing `..list` or `..{ 3, 4 }` into another function passes every argument
 # individually, instead of passing the whole table.
 
+pub func len = core.len
+pub func to_string = core.to_string
+
 ## Format arguments to string
 #
 # Rust-style formatting
 #: string, ..any -> string
 pub func format(fmt, ..args)
-    if fmt == nil then
+    if fmt == null then
         return ""
     end
     if len(args) == 0 then
@@ -43,28 +48,12 @@ pub func format(fmt, ..args)
     todo()
 end
 
-## Get length of a value
-#: any -> int
-pub func len(value)
-    match typeof(value) in
-        "string" do return core.string_len(value) end
-        "number" do return 0 end
-        "bool" do return 0 end
-        "table" do
-            if value.@len /= nil
-                then return value.@len()
-                else return core.table_len(value)
-            end
-        end
-    end
-end
-
-# Type reflection
+## Type reflection
 pub module reflection
     pub func typeof = core.typeof
 end
 
-# System
+## System
 pub module sys
     # (inherit type signature and doc comments)
     pub func exit = core.exit
@@ -100,47 +89,93 @@ pub module sys
     end
 end
 
-# Input/Output
+## Input/Output
 module io
-    pub func write = core.write
-    pub let stdin = core.stdin
-    pub let stdout = core.stdout
-    pub let stderr = core.stderr
+    # Maybe use path="/dev/std*" instead
+    ## Standard out
+    #: File
+    pub let stdin  = as File { path = null, handle = core.stdin }
+    ## Standard in
+    #: File
+    pub let stdout = as File { path = null, handle = core.stdout }
+    ## Standard error
+    #: File
+    pub let stderr = as File { path = null, handle = core.stderr }
 
-    ## Write formatted arguments to file
-    #: file, string, ..any -> void
-    pub func writef(file, fmt, ..args)
-        write(file, std.format(fmt, ..args))
+    ## Open file
+    pub template File {
+        #: string
+        path
+        #: int
+        handle
+        # a buffer or something ideally...
+    }
+
+    ## I/O error
+    pub template Error {
+        #: int
+        code,
+        #: string
+        message,
+    }
+
+    # Convert an error code to an Error
+    #: int -> Error|null
+    func result_from(code)
+        let message = match code
+            case 0 then return null
+            case 1 then "Not found"
+            # ...
+            else "Unknown error"
+        end
+        return as Error {
+            code = code,
+            message = message,
+        }
     end
 
-    ## Print formatted arguments to stdout
+    ## Write formatted arguments to file, without a newline.
+    #: File, string, ..any -> Error|null
+    pub func write(file, fmt, ..args)
+        let text = format(fmt, ..args)
+        let code = core.write(file.handle, text)
+        return result_from(code)
+    end
+
+    ## Write formatted arguments to file, with a newline.
+    #: File, string, ..any -> void
+    pub func writeln(file, fmt, ..args)
+        return write(file, fmt & '\n', ..args)
+    end
+    ## Print formatted arguments to stdout, without a newline.
     #: string, ..any -> void
-    pub func printf(fmt, ..args)
-        write(stdout, std.format(fmt, ..args))
+    pub func print(fmt, ..args)
+        _ = write(stdout, fmt, ..args)
+    end
+    ## Print formatted arguments to stdout, with a newline.
+    #: string, ..any -> void
+    pub func println(fmt, ..args)
+        _ = write(file, fmt & '\n', ..args)
     end
 
-    ## Print arguments to stdout, without newline
+    ## Print each argument to stderr, with newline.
+    ##
+    ## Used for debugging.
     #: ..any -> void
-    pub func put(..args)
+    pub func log(..args)
         for i, arg in args do
             if i > 0 then
-                printf(" ")
+                write(stderr, " ")
             end
-            printf("%s", to_string())
+            write(stderr, "{}", to_string(arg))
         end
-    end
-
-    ## Print arguments to stdout, with newline
-    #: ..any -> void
-    pub func print(..args)
-        put(..args)
-        printf("\n")
+        write(stderr, "\n")
     end
 end
 
-# Math(s)
+## Math(s)
 pub module math
-    # PI
+    ## PI
     pub let PI = 3.141592653589793
 end
 

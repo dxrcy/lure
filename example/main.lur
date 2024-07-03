@@ -57,8 +57,8 @@ func main()
 
     let s = "abc"
     print(s)
-    let s2 = s ++ "def" # Concatenation operator is undecided (cannot use `..`)
-    s ++= "def"
+    let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
+    s &= "def"
     print(s, s2)
 
     # Traditional C-style for-loop
@@ -190,9 +190,9 @@ func main()
     let x = 3
     # As a statement
     match x
-        if 4 then
+        case 4 then
             print("4")
-        elif 5 then
+        case 5 then
             print("5")
             print("it is five")
         else
@@ -201,20 +201,20 @@ func main()
 
     # Similar to `if` as an expression (ideally)
     let y = match x
-        if   4 then "4"
-        elif 5 then "5"
+        case 4 then "4"
+        case 5 then "5"
         else "default"
     end
 
     # Match guards
-    # Maybe use `and` instead of `with` if possible
+    # Maybe use `if` instead of `where` if possible
     let foo = 9
     let y = match x
-        if 4 with foo == 9 then
+        case 4 where foo == 9 then
             "4 and foo == 9"
-        if 4 then
+        case 4 then
             "4 but foo != 9"
-        elif 5 then
+        case 5 then
             "5"
         else
             "default"
@@ -222,7 +222,7 @@ func main()
 
     # Matching a table
     match john
-        if { name = "John", .. } then
+        case { name = "John", .. } then
             print("Hello John")
         else
             print("Who are you")
