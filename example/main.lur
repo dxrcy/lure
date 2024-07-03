@@ -61,10 +61,10 @@ func main()
     s &= "def"
     print(s, s2)
 
-    # Traditional C-style for-loop
-    for let i = 0, i < 10, i += 1 do
-        print(i) # 0, 1, ... 9
-    end
+    # Traditional C-style for-loop ??
+    # for let i = 0, i < 10, i += 1 do
+    #     print(i) # 0, 1, ... 9
+    # end
 
     # Simple range for-loop
     for i in 0 to 10 do
@@ -127,7 +127,7 @@ func main()
     end
 
     let a = 0
-    loop
+    while a do
         print(a)
         a += 1
         if a > 10 then
@@ -140,7 +140,7 @@ func main()
 
     print(lib.PI)
 
-    let john = as lib.person {
+    let john = as lib.Person {
         name = "John",
         age = 30,
     }

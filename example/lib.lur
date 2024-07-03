@@ -42,7 +42,7 @@ end
 # Default fields and methods will be automatically included in the table.
 
 ## A person
-pub template person = {
+pub template Person = {
     # Required fields. If a table is defined with the template, and these
     # values are not supplied, the interpreter will throw an error (or at least
     # a warning)
@@ -62,7 +62,7 @@ pub template person = {
     # Not sure what the type-comment syntax should be for `self`
    
     ## Get the name
-    #: (person) -> string
+    #: (Person) -> string
     func get_name(self)
         return self.name
     end
@@ -76,21 +76,21 @@ pub template person = {
     # `@to_string` method is not defined anywhere. Though doc comments probably
     # are not necessary here.
 
-    #: (person) -> string
+    #: (Person) -> string
     func @to_string(self)
         return std.format("%s is %d years old", self.name, self.age)
     end
 }
 
-pub template vector = {
+pub template Vector = {
     #: int
     x = 0,
     #: int
     y = 0,
     
-    #: (vector), vector -> vector
+    #: (Vector), Vector -> Vector
     func @add(self, other)
-        return as vector {
+        return as Vector {
             x = self.x + other.x,
             y = self.y + other.y,
         }
