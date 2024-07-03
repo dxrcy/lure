@@ -172,8 +172,17 @@ string | int
 string | null
 
 # Table
-{ int }
-{ string | int }
+# Just values (positional)
+{ bool }
+# Keys and values (named)
+{ string:bool }
+# Unions
+{ string | bool }
+{ string:string | string:bool }
+# Use explicit key type (int) for mixed positional/named items
+{ int:string | string:bool }
+# Combining unions and tables
+{ int:bool } | { string:int }
 { string | int } | null
 
 # Functions
@@ -192,11 +201,7 @@ func (void -> void)
 Maybe at some point these will be added for nicer syntax:
 
 ```
-# I dont think this one is a good idea.
-# int | null
-?int
-
-# Custom type comments ??
+# Custom types in type-comments ??
 # Idk how this would work
 file
 ```
