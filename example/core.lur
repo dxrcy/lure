@@ -43,13 +43,13 @@ pub let stderr = 2
 pub func len(value)
     # Something like:
     match typeof(value)
-        case "null"   then return 0 end
+        case "nil"   then return 0 end
         case "bool"   then return 0 end
         case "number" then return 0 end
         case "char"   then return 1 end
         case "string" then todo() end
         case "table" then
-            if value.@len /= null
+            if value.@len /= nil
                 then value.@len()
                 else todo()
             end
@@ -61,7 +61,7 @@ end
 pub func to_string(value)
     # Something like:
     match typeof(value)
-        case "null"   then return "null" end
+        case "nil"   then return "nil" end
         case "string" then return value end
         case "char"   then todo() end
         case "number" then todo() end
@@ -72,7 +72,7 @@ pub func to_string(value)
             end
         end
         case "table" then
-            if value.@to_string /= null
+            if value.@to_string /= nil
                 then value.@to_string()
                 else todo() # Something like `<type@line>`
             end

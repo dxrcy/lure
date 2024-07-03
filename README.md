@@ -26,20 +26,20 @@ while
 loop
 do
 in
-to ????
+to        # ????
 break
 continue
 return
 and
 or
-null ?? nil ?
+nil       # Use `null` instead ?
 true
 false
 use
-as  ???
+as        # ??? 
 match
 case
-where ???
+where     # Use `if` instead ?
 ```
 
 ## Operators / Special Characters
@@ -156,7 +156,7 @@ Returned, as strings, by `std.typeof`.
 No further type information is given.
 
 ```
-null
+nil
 bool
 number
 char    # Maybe this is a bad idea?
@@ -170,7 +170,7 @@ Not checked by the interpreter, but may be checked by linters / build tools.
 
 ```
 # Basic types
-null
+nil
 bool
 int
 number (real number / float)
@@ -188,7 +188,7 @@ never
 
 # Union types
 string | int
-string | null
+string | nil
 
 # Table
 # Just values (positional)
@@ -202,7 +202,7 @@ string | null
 { int:string | string:bool }
 # Combining unions and tables
 { int:bool } | { string:int }
-{ string | int } | null
+{ string | int } | nil
 
 # Functions
 int, int -> int

@@ -38,7 +38,7 @@ pub func to_string = core.to_string
 # Rust-style formatting
 #: string, ..any -> string
 pub func format(fmt, ..args)
-    if fmt == null then
+    if fmt == nil then
         return ""
     end
     if len(args) == 0 then
@@ -94,13 +94,13 @@ module io
     # Maybe use path="/dev/std*" instead
     ## Standard out
     #: File
-    pub let stdin  = as File { path = null, handle = core.stdin }
+    pub let stdin  = as File { path = nil, handle = core.stdin }
     ## Standard in
     #: File
-    pub let stdout = as File { path = null, handle = core.stdout }
+    pub let stdout = as File { path = nil, handle = core.stdout }
     ## Standard error
     #: File
-    pub let stderr = as File { path = null, handle = core.stderr }
+    pub let stderr = as File { path = nil, handle = core.stderr }
 
     ## Open file
     pub template File {
@@ -120,10 +120,10 @@ module io
     }
 
     # Convert an error code to an Error
-    #: int -> Error|null
+    #: int -> Error|nil
     func result_from(code)
         let message = match code
-            case 0 then return null
+            case 0 then return nil
             case 1 then "Not found"
             # ...
             else "Unknown error"
@@ -135,7 +135,7 @@ module io
     end
 
     ## Write formatted arguments to file, without a newline.
-    #: File, string, ..any -> Error|null
+    #: File, string, ..any -> Error|nil
     pub func write(file, fmt, ..args)
         let text = format(fmt, ..args)
         let code = core.write(file.handle, text)

@@ -21,8 +21,8 @@ use lib.add
 
 # (implicit type signature)
 # Either one of:
-#: void -> int | null
-#: {string} -> int | null
+#: void -> int|nil
+#: {string} -> int|nil
 func main()
     print("Hello World")
 
@@ -145,7 +145,7 @@ func main()
         age = 30,
     }
 
-    assert(typeof(null),   "null")
+    assert(typeof(nil),    "nil")
     assert(typeof(true),   "bool")
     assert(typeof(4),      "number")
     assert(typeof(4.5),    "number")
