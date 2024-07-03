@@ -1,7 +1,9 @@
 # ok
 func main()
     print("Hello. World")
-    let abc = 12.4++2
+    let abc = 2.3
+    let def = {
+        adw = 24
+    }
 end
-
 

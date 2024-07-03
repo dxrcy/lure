@@ -37,6 +37,12 @@ where
             panic!("Too many back steps");
         }
     }
+
+    pub fn peek(&mut self) -> Option<<T as Iterator>::Item> {
+        let item = self.next()?;
+        self.back();
+        Some(item)
+    }
 }
 
 impl<const N: usize, T> Iterator for Backtrackable<N, T>
@@ -48,15 +54,15 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.back_count > 0 {
-            let ch = self.buffer.get_back(self.back_count - 1).unwrap();
+            let item = self.buffer.get_back(self.back_count - 1).unwrap();
             self.back_count -= 1;
-            return Some(ch);
+            return Some(item);
         }
-        let Some(ch) = self.source.next() else {
+        let Some(item) = self.source.next() else {
             return None;
         };
-        self.buffer.push(ch);
-        Some(ch)
+        self.buffer.push(item);
+        Some(item)
     }
 }
 
@@ -102,7 +108,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn backtrack_chars_works() {
+    fn backtrack_works() {
         let string = "abcde";
         let mut chars = Backtrackable::<4, _>::from(string.chars());
         assert_eq!(chars.next(), Some('a'), "1");
@@ -138,8 +144,25 @@ mod tests {
     }
 
     #[test]
+    fn backtrack_peek_works() {
+        let string = "abcde";
+        let mut chars = Backtrackable::<3, _>::from(string.chars());
+        assert_eq!(chars.next(), Some('a'), "1");
+        assert_eq!(chars.peek(), Some('b'), "2");
+        assert_eq!(chars.next(), Some('b'), "3");
+        assert_eq!(chars.peek(), Some('c'), "4");
+        assert_eq!(chars.next(), Some('c'), "5");
+        chars.back();
+        assert_eq!(chars.peek(), Some('c'), "6");
+        assert_eq!(chars.next(), Some('c'), "7");
+        assert_eq!(chars.peek(), Some('d'), "8");
+        assert_eq!(chars.peek(), Some('d'), "9");
+        assert_eq!(chars.next(), Some('d'), "10");
+    }
+
+    #[test]
     #[should_panic]
-    fn backtrack_chars_panics() {
+    fn backtrack_panics() {
         let string = "abcde";
         let mut chars = Backtrackable::<3, _>::from(string.chars());
         assert_eq!(chars.next(), Some('a'), "1");
