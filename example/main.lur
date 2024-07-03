@@ -2,7 +2,9 @@
 
 # A file is a module
 # Modules can only contain 'items':
-#   (pub) let|func|module|template
+#   (pub) let|func|template|module
+#
+# Note that a `let` variable in a module acts as a constant
 
 # Main function is required for `main.lur`
 
@@ -24,13 +26,20 @@ use lib.add
 func main()
     print("Hello World")
 
+    # All variables and items are scoped by block
+    
     let x = 2
     x = x + 3
     x += 3 # Advanced assignment operators are supported
     print(x)
 
+    # Re-declaration of variable shadows original
+    let x = 4
+
     if x > 3 then
         print("> 3")
+    elif x == 2 then
+        print("== 2")
     else
         print("<= 3")
     end
@@ -48,8 +57,8 @@ func main()
 
     let s = "abc"
     print(s)
-    let s2 = s .. "def" # Concatenation operator is undecided
-    s ..= "def"
+    let s2 = s ++ "def" # Concatenation operator is undecided (cannot use `..`)
+    s ++= "def"
     print(s, s2)
 
     # Traditional C-style for-loop
@@ -111,26 +120,114 @@ func main()
         printf("{}\n", value) # 4, 5
     end
 
+    let a = 0
+    while a < 10 do
+        print(a)
+        a += 1
+    end
+
+    let a = 0
+    loop
+        print(a)
+        a += 1
+        if a > 10 then
+            break
+        end
+    end
+
     print(add(5, 6))
     print(lib.add(5, 6))
 
     print(lib.PI)
 
-    let john = { as @lib.person
+    let john = as lib.person {
         name = "John",
         age = 30,
     }
 
-    assert(type(4),      "number")
-    assert(type(4.5),    "number")
-    assert(type("foo"),  "string")
-    assert(type(list),   "table")
-    assert(type(dict),   "table")
-    assert(type(mixed),  "table")
-    # Idk about these...
-    assert(type(lib),    "table") # "module"
-    assert(type(john),   "table") # "person"
-    assert(type(person), "table") # "template"
+    assert(typeof(null),   "null")
+    assert(typeof(true),   "bool")
+    assert(typeof(4),      "number")
+    assert(typeof(4.5),    "number")
+    assert(typeof('f'),    "char")
+    assert(typeof("foo"),  "string")
+    assert(typeof(list),   "table")
+    assert(typeof(dict),   "table")
+    assert(typeof(mixed),  "table")
+    assert(typeof(john),   "table") # template "person" is no longer relevant
+
+    # A template is used as a value. Not allowed.
+    # Interpreter will throw an error
+    assert(typeof(person), "never")
+    
+    # This also *might* throw an error?
+    assert(typeof(lib),    "never")
+
+    # Spread operator
+    let jane = { name = "Jane", ..john }
+
+    # Destructuring
+    let { name } = { name = "John" }
+    let { name, age } = john
+    let { name, .. } = john
+    # Renaming fields
+    # Maybe use `=` instead of `:`
+    let { name: johns_name } = john
+    print(johns_name)
+    # No! Not allowed.
+    let { name, _ } = john
+    # Completely pointless. Use `_` instead. Throws error.
+    let { .. } = john
+    # Omitting a field
+    # Still works, but best to write `..` for readability
+    # Actually ideally fields are checked when using a template.
+    # ^ Maybe a job for the linter ?
+    let { name } = john
+    # Positional destructuring
+    # Not the nicest syntax, but avoids ambiguity
+    let { 0: a, 1: b } = { 3, 4 }
+
+    # Match (switch) statements
+    let x = 3
+    # As a statement
+    match x
+        if 4 then
+            print("4")
+        elif 5 then
+            print("5")
+            print("it is five")
+        else
+            "default"
+    end
+
+    # Similar to `if` as an expression (ideally)
+    let y = match x
+        if   4 then "4"
+        elif 5 then "5"
+        else "default"
+    end
+
+    # Match guards
+    # Maybe use `and` instead of `with` if possible
+    let foo = 9
+    let y = match x
+        if 4 with foo == 9 then
+            "4 and foo == 9"
+        if 4 then
+            "4 but foo != 9"
+        elif 5 then
+            "5"
+        else
+            "default"
+    end
+
+    # Matching a table
+    match john
+        if { name = "John", .. } then
+            print("Hello John")
+        else
+            print("Who are you")
+    end
 end
 
 

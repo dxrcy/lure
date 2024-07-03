@@ -90,7 +90,7 @@ pub template vector = {
     
     #: (vector), vector -> vector
     func @add(self, other)
-        return { as vector
+        return as vector {
             x = self.x + other.x,
             y = self.y + other.y,
         }

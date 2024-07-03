@@ -22,11 +22,17 @@ pub module prelude
     pub func len = len
 end
 
+# The `..` operator is used for variadic arguments.
+# Only one is allowed in a function signature, as the last parameter.
+# Given a parameter `..args`, using `args` gives a table of arguments.
+# Passing `..list` or `..{ 3, 4 }` into another function passes every argument
+# individually, instead of passing the whole table.
+
 ## Format arguments to string
 #
 # Rust-style formatting
-#: string, ...any -> string
-pub func format(fmt, ...args)
+#: string, ..any -> string
+pub func format(fmt, ..args)
     if fmt == nil then
         return ""
     end
@@ -63,18 +69,18 @@ pub module sys
     # (inherit type signature and doc comments)
     pub func exit = core.exit
 
-    pub func panic(...message)
+    pub func panic(..message)
         if len(message) == 0 then
             core.panic("panic")
         end
-        core.panic("panic:", std.format(...message))
+        core.panic("panic:", std.format(..message))
     end
 
     ## Panic with 'to do' message
-    #: ...any -> never
-    pub func todo(...message)
+    #: ..any -> never
+    pub func todo(..message)
         if len(message) > 0 then
-            panic("to do:", ...message)
+            panic("to do:", ..message)
         else
             panic("to do")
         end
@@ -82,12 +88,12 @@ pub module sys
 
     ## Panic with 'assertion failed' message, if condition not met
     #: bool -> void
-    pub func assert(condition, ...message)
+    pub func assert(condition, ..message)
         if condition then
             return
         end
         if len(message) > 0 then
-            panic("assertion failed:", ...message)
+            panic("assertion failed:", ..message)
         else
             panic("assertion failed")
         end
@@ -102,20 +108,20 @@ module io
     pub let stderr = core.stderr
 
     ## Write formatted arguments to file
-    #: file, string, ...any -> void
-    pub func writef(file, fmt, ...args)
-        write(file, std.format(fmt, ...args))
+    #: file, string, ..any -> void
+    pub func writef(file, fmt, ..args)
+        write(file, std.format(fmt, ..args))
     end
 
     ## Print formatted arguments to stdout
-    #: string, ...any -> void
-    pub func printf(fmt, ...args)
-        write(stdout, std.format(fmt, ...args))
+    #: string, ..any -> void
+    pub func printf(fmt, ..args)
+        write(stdout, std.format(fmt, ..args))
     end
 
     ## Print arguments to stdout, without newline
-    #: ...any -> void
-    pub func put(...args)
+    #: ..any -> void
+    pub func put(..args)
         for i, arg in args do
             if i > 0 then
                 printf(" ")
@@ -125,9 +131,9 @@ module io
     end
 
     ## Print arguments to stdout, with newline
-    #: ...any -> void
-    pub func print(...args)
-        put(...args)
+    #: ..any -> void
+    pub func print(..args)
+        put(..args)
         printf("\n")
     end
 end

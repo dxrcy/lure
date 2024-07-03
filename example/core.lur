@@ -43,8 +43,9 @@ pub let stderr = 2
 pub func to_string(value)
     # Something like:
     match typeof(value) in
-        "null" do return "null" end
+        "null"   do return "null" end
         "string" do return value end
+        "char"   do todo() end
         "number" do todo() end
         "bool" do
             if value 
@@ -55,7 +56,7 @@ pub func to_string(value)
         "table" do
             if value.@to_string /= nil
                 then value.@to_string()
-                else todo() # Something like `type@line`
+                else todo() # Something like `<type@line>`
             end
         end
     end

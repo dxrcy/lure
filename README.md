@@ -6,7 +6,9 @@ Actually it is inspired by Lua, Rust, Zig, Haskell, and probably others.
 
 At the moment is is just a concept...
 
-# Keywords
+# Syntax
+
+## Keywords
 
 ```
 let
@@ -18,7 +20,7 @@ end
 if
 then
 else
-elseif
+elif
 for
 while
 loop
@@ -35,9 +37,69 @@ true
 false
 use
 as  ???
+with ???
 ```
 
-# Comments
+## Operators / Special Characters
+
+(see keywords for `not`, etc)
+
+```
+( )
+{ }
+[ ]
+,
+
+"
+'
+
++
+-
+*
+/
+%
+
+++
+
+=
++=
+-=
+*=
+/=
+%=
+
+==
+/=
+>
+<
+>=
+<=
+
+_
+..
+:   # May use `=` for destructuring
+
+#
+##
+#!
+#:
+```
+
+In type-comments:
+
+```
+,
+|
+->
+```
+
+Only semantic meaning:
+
+```
+@
+```
+
+## Comments
 
 ```lure
 # Normal comment
@@ -79,6 +141,7 @@ No further type information is given.
 null
 bool
 number
+char    # Maybe this is a bad idea?
 string
 table
 ```
