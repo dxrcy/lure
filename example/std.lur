@@ -1,0 +1,140 @@
+#! Standard library for Lure runtime
+
+# Some of these functions *may* be moved to `core` to improve performance?
+
+# Maybe importing core from outside of `std` causes a warning?
+use core
+
+pub module prelude
+    # (inherit type signature and doc comments)
+
+    pub func exit = sys.exit
+    pub func panic = sys.panic
+    pub func todo = sys.todo
+    pub func assert = sys.assert
+
+    pub func print = io.print
+    pub func printf = io.printf
+
+    pub func typeof = reflection.typeof
+
+    pub func format = format
+    pub func len = len
+end
+
+## Format arguments to string
+#
+# Rust-style formatting
+#: string, ...any -> string
+pub func format(fmt, ...args)
+    if fmt == nil then
+        return ""
+    end
+    if len(args) == 0 then
+        return fmt
+    end
+
+    todo()
+end
+
+## Get length of a value
+#: any -> int
+pub func len(value)
+    match typeof(value) in
+        "string" do return core.string_len(value) end
+        "number" do return 0 end
+        "bool" do return 0 end
+        "table" do
+            if value.@len /= nil
+                then return value.@len()
+                else return core.table_len(value)
+            end
+        end
+    end
+end
+
+# Type reflection
+pub module reflection
+    pub func typeof = core.typeof
+end
+
+# System
+pub module sys
+    # (inherit type signature and doc comments)
+    pub func exit = core.exit
+
+    pub func panic(...message)
+        if len(message) == 0 then
+            core.panic("panic")
+        end
+        core.panic("panic:", std.format(...message))
+    end
+
+    ## Panic with 'to do' message
+    #: ...any -> never
+    pub func todo(...message)
+        if len(message) > 0 then
+            panic("to do:", ...message)
+        else
+            panic("to do")
+        end
+    end
+
+    ## Panic with 'assertion failed' message, if condition not met
+    #: bool -> void
+    pub func assert(condition, ...message)
+        if condition then
+            return
+        end
+        if len(message) > 0 then
+            panic("assertion failed:", ...message)
+        else
+            panic("assertion failed")
+        end
+    end
+end
+
+# Input/Output
+module io
+    pub func write = core.write
+    pub let stdin = core.stdin
+    pub let stdout = core.stdout
+    pub let stderr = core.stderr
+
+    ## Write formatted arguments to file
+    #: file, string, ...any -> void
+    pub func writef(file, fmt, ...args)
+        write(file, std.format(fmt, ...args))
+    end
+
+    ## Print formatted arguments to stdout
+    #: string, ...any -> void
+    pub func printf(fmt, ...args)
+        write(stdout, std.format(fmt, ...args))
+    end
+
+    ## Print arguments to stdout, without newline
+    #: ...any -> void
+    pub func put(...args)
+        for i, arg in args do
+            if i > 0 then
+                printf(" ")
+            end
+            printf("%s", to_string())
+        end
+    end
+
+    ## Print arguments to stdout, with newline
+    #: ...any -> void
+    pub func print(...args)
+        put(...args)
+        printf("\n")
+    end
+end
+
+# Math(s)
+pub module math
+    # PI
+    pub let PI = 3.141592653589793
+end
+

@@ -1,0 +1,136 @@
+#!/bin/lure
+
+# A file is a module
+# Modules can only contain 'items':
+#   (pub) let|func|module|template
+
+# Main function is required for `main.lur`
+
+# Implicit imports for every file/module
+#   use std
+#   use std.prelude.*
+
+use std.{print, printf}
+
+# Explicit `use {module}` is required before using items of module
+# ^ Maybe this is a bad idea
+use lib
+use lib.add
+
+# (implicit type signature)
+# Either one of:
+#   void -> ?int
+#   {string} -> ?int
+func main()
+    print("Hello World")
+
+    let x = 2
+    x = x + 3
+    x += 3 # Advanced assignment operators are supported
+    print(x)
+
+    if x > 3 then
+        print("> 3")
+    else
+        print("<= 3")
+    end
+    # (Alternative formatting)
+    if x > 3
+        then print("> 3")
+        else print("<= 3")
+    end
+
+    # Hopefully this can work
+    let y = if x > 3
+        then 4
+        else 6
+    end
+
+    let s = "abc"
+    print(s)
+    let s2 = s .. "def" # Concatenation operator is undecided
+    s ..= "def"
+    print(s, s2)
+
+    # Traditional C-style for-loop
+    for let i = 0, i < 10, i += 1 do
+        print(i) # 0, 1, ... 9
+    end
+
+    # Simple range for-loop
+    for i in 0 to 10 do
+        print(i) # 0, 1, ... 9
+    end
+    for i in 0 to len(list) do
+        printf("{}: {}\n", i, list[i])
+    end
+
+    let list = { 4, 5, 6 }
+
+    print(len(list))
+
+    for i in list do
+        printf("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+    end
+    for i, item in list do
+        printf("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+    end
+    for _, item in list do
+        printf("{}\n", item) # 4, 5, 6
+    end
+    # ^ Underscore is used to ignore a value
+    # ^ Comma *may* be removed between values in this context?
+
+    let dict = {
+        a = 1,
+        b = 2,
+    }
+
+    for key in dict do
+        printf("{}: {}\n", key, dict[key]) # a: 1, b: 2
+    end
+    for key, value in dict do
+        printf("{}: {}\n", key, value) # a: 1, b: 2
+    end
+    for _, value in dict do
+        printf("{}\n", value) # 1 2
+    end
+
+    let mixed = {
+        4,
+        a = 5,
+    }
+
+    for key in mixed do
+        printf("{}: {}\n", key, mixed[key]) # 0: 4, a: 5
+    end
+    for key, value in mixed do
+        printf("{}: {}\n", key, value) # 0: 4, a: 5
+    end
+    for _, value in mixed do
+        printf("{}\n", value) # 4, 5
+    end
+
+    print(add(5, 6))
+    print(lib.add(5, 6))
+
+    print(lib.PI)
+
+    let john = { as @lib.person
+        name = "John",
+        age = 30,
+    }
+
+    assert(type(4),      "number")
+    assert(type(4.5),    "number")
+    assert(type("foo"),  "string")
+    assert(type(list),   "table")
+    assert(type(dict),   "table")
+    assert(type(mixed),  "table")
+    # Idk about these...
+    assert(type(lib),    "table") # "module"
+    assert(type(john),   "table") # "person"
+    assert(type(person), "table") # "template"
+end
+
+

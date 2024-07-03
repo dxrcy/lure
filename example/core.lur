@@ -1,0 +1,69 @@
+#! -- Provided by runtime --
+#!
+#! These functions will not be written in Lure, but they will be exposed to
+#! `std`, or possibly any module.
+#!
+#! Only shown here for documentation purposes.
+
+#: int -> never
+pub func exit(code)
+    todo()
+end
+
+#: string -> never
+pub func panic(message)
+    todo()
+end
+
+#: any -> string
+pub func typeof(value)
+    todo()
+end
+
+#: file, text -> int
+pub func write(file, text)
+    todo()
+end
+
+#: file -> text | int
+pub func read(file)
+    todo()
+end
+
+# TODO: idk what to do for files...
+
+#: int
+pub let stdout = 0
+#: int
+pub let stdin = 1
+#: int
+pub let stderr = 2
+
+#: any -> string
+pub func to_string(value)
+    # Something like:
+    match typeof(value) in
+        "null" do return "null" end
+        "string" do return value end
+        "number" do todo() end
+        "bool" do
+            if value 
+                then return "true"
+                else return "false"
+            end
+        end
+        "table" do
+            if value.@to_string /= nil
+                then value.@to_string()
+                else todo() # Something like `type@line`
+            end
+        end
+    end
+end
+
+# Used by the `+` operator
+#: a, a -> a
+pub func add(value, other)
+    todo()
+end
+
