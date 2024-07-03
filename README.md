@@ -77,7 +77,6 @@ with ???
 
 _
 ..
-:   # May use `=` for destructuring
 
 #
 ##

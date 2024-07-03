@@ -21,8 +21,8 @@ use lib.add
 
 # (implicit type signature)
 # Either one of:
-#   void -> ?int
-#   {string} -> ?int
+#: void -> int | null
+#: {string} -> int | null
 func main()
     print("Hello World")
 
@@ -171,8 +171,7 @@ func main()
     let { name, age } = john
     let { name, .. } = john
     # Renaming fields
-    # Maybe use `=` instead of `:`
-    let { name: johns_name } = john
+    let { name = johns_name } = john
     print(johns_name)
     # No! Not allowed.
     let { name, _ } = john
@@ -185,7 +184,7 @@ func main()
     let { name } = john
     # Positional destructuring
     # Not the nicest syntax, but avoids ambiguity
-    let { 0: a, 1: b } = { 3, 4 }
+    let { 0 = a, 1 = b } = { 3, 4 }
 
     # Match (switch) statements
     let x = 3
