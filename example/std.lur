@@ -64,35 +64,34 @@ module sys
     # (inherit type signature and doc comments)
     let exit = core.exit
 
-    func panic(..message)
-        if len(message) == 0 then
-            core.panic("panic")
+    #: string, string | null, ..any -> never
+    func _panic_kind(kind, fmt, ..args)
+        if fmt == nil then
+            write(io.stderr, kind)
         else
-            core.panic("panic:", std.format(..message))
+            write(io.stderr, std.format(kind & ": " & fmt, ..args))
         end
+        exit(255)
+    end
+
+    #: string | null, ..any -> never
+    func panic(fmt, ..args)
+        _panic_kind("panic", fmt, ..args)
     end
 
     ## Panic with 'to do' message
-    #: ..any -> never
-    func todo(..message)
-        if len(message) > 0 then
-            panic("to do:", ..message)
-        else
-            panic("to do")
-        end
+    #: string | null, ..any -> never
+    func todo(fmt, ..args)
+        _panic_kind("todo", fmt, ..args)
     end
 
     ## Panic with 'assertion failed' message, if condition not met
-    #: bool -> void
-    func assert(condition, ..message)
+    #: bool, string | null, ..any -> void
+    func assert(condition, fmt, ..args)
         if condition then
             return
         end
-        if len(message) > 0 then
-            panic("assertion failed:", ..message)
-        else
-            panic("assertion failed")
-        end
+        _panic_kind("assertion failed", fmt, ..args)
     end
 end
 

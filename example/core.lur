@@ -8,9 +8,6 @@
 #: int -> never
 func exit(code) end
 
-#: string -> never
-func panic(message) end
-
 #: any -> string
 func typeof(value) end
 
