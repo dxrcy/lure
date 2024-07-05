@@ -9,7 +9,7 @@
 func exit(code) end
 
 #: any -> string
-func typeof(value) end
+func type_of(value) end
 
 #: path, int -> { int, int }
 func open(path, mode) end
@@ -38,41 +38,62 @@ let stderr = 2
 #: any -> int
 func len(value)
     # Something like:
-    match typeof(value)
-        case "nil"   then return 0 end
-        case "bool"   then return 0 end
-        case "number" then return 0 end
-        case "char"   then return 1 end
+    match type_of(value)
+        case "nil"    then return 0
+        case "bool"   then return 0
+        case "number" then return 0
+        case "char"   then return 1
         case "string" then todo() end
         case "table" then
             if value.@len /= nil
-                then value.@len()
+                then return value.@len()
                 else todo()
             end
-        end
     end
 end
 
 #: any -> string
 func to_string(value)
     # Something like:
-    match typeof(value)
-        case "nil"   then return "nil" end
-        case "char"   then todo() end
-        case "number" then todo() end
-        case "string" then return value end
+    match type_of(value)
+        case "nil"    then return "nil"
+        case "number" then todo()
+        case "char"   then todo()
+        case "string" then return value
         case "bool" then
             if value 
                 then return "true"
                 else return "false"
             end
-        end
         case "table" then
             if value.@to_string /= nil
-                then value.@to_string()
+                then return value.@to_string()
                 else todo() # Something like `<type@line>`
             end
-        end
+    end
+end
+
+# Returns:
+#   -1 if value < other
+#    0 if value == other
+#   +1 if value > other
+#: a, a -> int
+func compare(value, other)
+    # Something like:
+    match { type_of(value), type_of(other) }
+        case { "null", "null" }     then return 0
+        case { "bool", "bool" }     then todo()
+        case { "number", "number" } then todo() # Near-enough floats should return 0
+        case { "char", "char" }     then todo()
+        case { "string", "string" } then todo()
+        case { "char", "string" }   then todo() 
+        case { "string", "char" }   then todo() 
+        case { "table", "table" } then
+            if value.@compare /= nil
+                then return value.@compare(other)
+                else todo() # Maybe just return non-zero always ?
+            end
+        else return false # Mismatched types
     end
 end
 

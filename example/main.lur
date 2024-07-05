@@ -18,6 +18,8 @@ let std = require("@std") # Or "std"
 let { print, println, (...) } = std.prelude
 
 # Import a module
+# Executes module when `require` expression is run
+# This will run any module-level statements
 let lib = require("lib")
 let add = lib.add
 
@@ -159,26 +161,26 @@ assert(typeof(lib),    "never")
 let jane = { name = "Jane", ..john }
 
 # Destructuring
-let { name } = { name = "John" }
-let { name, age } = john
-let { name, .. } = john
+let { name = name } = { name = "John" }
+let { name = name, age = age } = john
+let { name = name, .. } = john
 # Renaming fields
 let { name = johns_name } = john
 println(johns_name)
 # No! Not allowed.
-let { name, _ } = john
+let { name = name, _ } = john
 # Completely pointless. Use `_` instead. Throws error.
 let { .. } = john
 # Omitting a field
 # Still works, but best to write `..` for readability
 # Actually ideally fields are checked when using a template.
 # ^ Maybe a job for the linter ?
-let { name } = john
+let { name = name } = john
 # Positional destructuring
-# Not the nicest syntax, but avoids ambiguity
-let { 0 = a, 1 = b } = { 3, 4 }
+let { a, b } = { 3, 4 }
 
 # Match (switch) statements
+# Case can be any expression which will be compared with `std.compare`
 let x = 3
 # As a statement
 match x
@@ -188,7 +190,7 @@ match x
         println("5")
         println("it is five")
     else
-        "default"
+        println("default")
 end
 
 # Similar to `if` as an expression (ideally)

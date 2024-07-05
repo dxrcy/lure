@@ -11,8 +11,11 @@ let PI = std.math.PI
 
 let fib_memory = {}
 
+# Alternate function definition
+# `func(...) ... end` is an expression
+
 #: int -> int
-func fib(n)
+let fib = func(n)
     # panics if not met
     assert(is_int(n) and n >= 0)
 
