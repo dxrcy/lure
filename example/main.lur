@@ -8,7 +8,7 @@
 # - another module
 # - variable declaration
 # - assignment operation
-# - loop or conditional
+# - loop / conditional / match
 # - expression (incl. function call)
 
 # NO statements/functions are hoisted
@@ -28,8 +28,7 @@ println("Hello World")
 # All variables and items are scoped by block
 
 let x = 2
-x = x + 3
-x += 3 # Advanced assignment operators are supported
+x = x + 3 # Advanced assignment operators are NOT supported
 println(x)
 
 # Re-declaration of variable shadows original
@@ -57,7 +56,6 @@ end
 let s = "abc"
 log(s)
 let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
-s &= "def"
 println(s, s2)
 
 # Simple range for-loop
@@ -116,13 +114,13 @@ end
 let a = 0
 while a < 10 do
     log(a)
-    a += 1
+    a = a + 1
 end
 
 let a = 0
 while a do
     log(a)
-    a += 1
+    a = a + 1
     if a > 10 then
         break
     end
@@ -138,16 +136,16 @@ let john = as lib.Person {
     age = 30,
 }
 
-assert(typeof(nil),    "nil")
-assert(typeof(true),   "bool")
-assert(typeof(4),      "number")
-assert(typeof(4.5),    "number")
-assert(typeof('f'),    "char")
-assert(typeof("foo"),  "string")
-assert(typeof(list),   "table")
-assert(typeof(dict),   "table")
-assert(typeof(mixed),  "table")
-assert(typeof(john),   "table") # template "person" is no longer relevant
+assert(typeof(nil),   "nil")
+assert(typeof(true),  "bool")
+assert(typeof(4),     "number")
+assert(typeof(4.5),   "number")
+assert(typeof('f'),   "char")
+assert(typeof("foo"), "string")
+assert(typeof(list),  "table")
+assert(typeof(dict),  "table")
+assert(typeof(mixed), "table")
+assert(typeof(john),  "table") # template "person" is no longer relevant
 
 # A template is used as a value. Not allowed.
 # Interpreter will throw an error
