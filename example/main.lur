@@ -155,6 +155,38 @@ assert(typeof(person), "never")
 # Unless modules are converted to tables
 assert(typeof(lib),    "never")
 
+# Indexing and slicing
+# Works the same for strings and lists
+let a = "abcdef"
+assert(a[0], "a")
+assert(a[-1], "f")
+assert(a[1, 2], "ab")
+assert(a[0, -1], "abcdef")
+assert(a[1, -1], "bcdef")
+assert(a[0, -2], "abcde")
+# Syntax sugar for call to core method implementations
+assert(a[0], a.get(0, nil))
+assert(a[-1], a.get(-1, nil))
+assert(a[1, 2], a.slice(1, 2))
+assert(a[0, -1], a.slice(0, -1))
+a[0] = "A"
+a.set(0, "A")
+# Panic if type is not table or string
+let n = 123
+n[0]
+n[0, 3]
+n[0] = 5
+n.get(0)
+n.slice(0, 3)
+n.set(0, 5)
+# Named table access
+let b = { a = 1, b = 2 }
+assert(b.a, 1)
+assert(b.b, 2)
+assert(b["a"], 1)
+assert(b[0], nil)
+assert(b[0, 1], nil)
+
 # Spread operator
 let jane = { name = "Jane", ..john }
 

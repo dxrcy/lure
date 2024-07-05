@@ -2,7 +2,7 @@
 
 A simple Lua-inspired scripting language.
 
-Actually it is inspired by Lua, Rust, Zig, Haskell, and probably others.
+Actually it is inspired by Lua, Rust, Zig, Haskell, Go, and probably others.
 
 At the moment is is just a concept...
 

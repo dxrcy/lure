@@ -31,9 +31,9 @@ func main(args)
             let is_win = true
             for _, ch in word do
                 if correct[ch] then
-                    visible &= ch
+                    visible = visible & ch
                 else
-                    visible &= '_'
+                    visible = visible & '_'
                     is_win = false
                 end
             end

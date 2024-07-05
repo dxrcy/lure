@@ -36,40 +36,82 @@ let stdin = 1
 let stderr = 2
 
 #: any -> int
-func len(value)
+func len(arg)
     # Something like:
-    match type_of(value)
+    match type_of(arg)
         case "nil"    then return 0
         case "bool"   then return 0
         case "number" then return 0
         case "char"   then return 1
         case "string" then todo() end
         case "table" then
-            if value.@len /= nil
-                then return value.@len()
+            if arg.@len /= nil
+                then return arg.@len()
                 else todo()
             end
     end
 end
 
 #: any -> string
-func to_string(value)
+func to_string(arg)
     # Something like:
-    match type_of(value)
+    match type_of(arg)
         case "nil"    then return "nil"
         case "number" then todo()
         case "char"   then todo()
-        case "string" then return value
+        case "string" then return arg
         case "bool" then
-            if value 
+            if arg 
                 then return "true"
                 else return "false"
             end
         case "table" then
-            if value.@to_string /= nil
-                then return value.@to_string()
+            if arg.@to_string /= nil
+                then return arg.@to_string()
                 else todo() # Something like `<type@line>`
             end
+    end
+end
+
+#: { k:v }, k -> v
+func get(arg, index)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@get /= nil
+                then return arg.@get(index)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+#: { int:v }, int, int -> v
+func slice(arg, start, end)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@slice /= nil
+                then return arg.@slice(start, end)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+#: { k:v }, k, v -> void
+func set(arg, index, value)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@get /= nil
+                then return arg.@set(index, value)
+                else todo()
+            end
+        else panic()
     end
 end
 
