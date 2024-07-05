@@ -9,7 +9,7 @@
 func exit(code) end
 
 #: any -> string
-func type_of(value) end
+func type_of(arg) end
 
 #: path, int -> { int, int }
 func open(path, mode) end
@@ -107,7 +107,7 @@ func set(arg, index, value)
     match type_of(arg)
         case "string" then todo()
         case "table" then
-            if arg.@get /= nil
+            if arg.@set /= nil
                 then return arg.@set(index, value)
                 else todo()
             end
@@ -115,14 +115,28 @@ func set(arg, index, value)
     end
 end
 
-# Returns:
-#   -1 if value < other
-#    0 if value == other
-#   +1 if value > other
-#: a, a -> int
-func compare(value, other)
+#: { int:v }, v -> void
+func push(arg, value)
     # Something like:
-    match { type_of(value), type_of(other) }
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@push /= nil
+                then return arg.@push(index, value)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+# Returns:
+#   -1 if arg < other
+#    0 if arg == other
+#   +1 if arg > other
+#: a, a -> int
+func compare(arg, other)
+    # Something like:
+    match { type_of(arg), type_of(other) }
         case { "nil", "nil" }       then return 0
         case { "bool", "bool" }     then todo()
         case { "number", "number" } then todo() # Near-enough floats should return 0
@@ -131,8 +145,8 @@ func compare(value, other)
         case { "char", "string" }   then todo() 
         case { "string", "char" }   then todo() 
         case { "table", "table" } then
-            if value.@compare /= nil
-                then return value.@compare(other)
+            if arg.@compare /= nil
+                then return arg.@compare(other)
                 else todo() # Maybe just return non-zero always ?
             end
         else return false # Mismatched types
@@ -141,10 +155,10 @@ end
 
 # Used by the `+` operator
 #: a, a -> a
-func add(value, other) end
+func add(arg, other) end
 
 #: number -> int
-func floor(value) end
+func floor(arg) end
 
 # Random float in the range [0, 1)
 #: void -> int
