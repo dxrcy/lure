@@ -153,10 +153,12 @@ Each argument is converted to a string automatically.
 Returned, as strings, by `std.typeof`.
 No further type information is given.
 
+Maybe change `number` to `int` and `float` ?
+
 ```
 nil
 bool
-number
+number (f64)
 char    # Maybe this is a bad idea?
 string
 table

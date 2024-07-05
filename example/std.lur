@@ -9,13 +9,17 @@ let core = require("@core")
 module prelude
     # (inherit type signature and doc comments)
 
+    let io = io
+    let sys = sys
+    let math = math
+
     let exit = sys.exit
     let panic = sys.panic
     let todo = sys.todo
     let assert = sys.assert
 
     let print = io.print
-    let printf = io.printf
+    let println = io.println
 
     let typeof = reflection.typeof
 
@@ -262,5 +266,25 @@ end
 module math
     ## PI
     let PI = 3.141592653589793
+
+    let floor = core.floor
+
+    # Generate a random number in the range [0, 1)
+    #: void -> number
+    func random()
+        return core.random()
+    end
+
+    # Generate a random float in the range [min, max)
+    # number, number -> number
+    func random_float(min, max)
+        return min + random() * (max - min)
+    end
+
+    # Generate a random integer in the range [min, max)
+    # int, int -> int
+    func random_int(min, max)
+        return floor(random_float(min, max))
+    end
 end
 

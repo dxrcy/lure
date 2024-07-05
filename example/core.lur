@@ -80,3 +80,10 @@ end
 #: a, a -> a
 func add(value, other) end
 
+#: number -> int
+func floor(value) end
+
+# Random float in the range [0, 1)
+#: void -> int
+func random() end
+
