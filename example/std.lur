@@ -38,6 +38,15 @@ let to_string = core.to_string
 # Rust-style formatting
 #: string, ..any -> string
 func format(fmt, ..args)
+    let result = _format_safe(fmt, ..args)
+    match result
+        case { ok } then return ok
+        else panic(result.err)
+    end
+end
+
+#: string, ..any -> { ok = string } | { err = string }
+func _format_safe(fmt, ..args)
     if fmt == nil then
         return ""
     end
@@ -45,7 +54,45 @@ func format(fmt, ..args)
         return fmt
     end
 
-    todo()
+    let output = ""
+    let arg_index = 0
+
+    for i in 0 to len(fmt) do
+        match fmt[i]
+        case '{' then
+            i += 1
+            if i >= len(fmt) then
+                return { err = "Unexpected end of format string. Expected `}}`" }
+            end
+            if fmt[i] == '{' then
+                output &= '{'
+                continue
+            else if fmt[i] /= '}' then
+                return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
+            end
+            if arg_index >= len(args) then
+                return { err = "Not enough arguments" }
+            else
+                output &= to_string(args[arg_index])
+                arg_index += 1
+            end
+        case '}' then
+            i += 1
+            if fmt[i] == '}' then
+                output &= '}'
+            else
+                return { err = "Unexpected `}}`" }
+            end
+        else
+            output &= fmt[i]
+        end
+    end
+
+    if arg_index + 1 < len(args) then
+        return { err = "Too many arguments" }
+    end
+
+    return { ok = output }
 end
 
 ## Return `true` if value is an integer
@@ -64,14 +111,21 @@ module sys
     # (inherit type signature and doc comments)
     let exit = core.exit
 
+    #: string
+    func _panic_unformatted(message)
+        write(io.stderr, kind)
+        exit(255)
+    end
+
     #: string, string | null, ..any -> never
     func _panic_kind(kind, fmt, ..args)
         if fmt == nil then
-            write(io.stderr, kind)
+            _panic_unformatted(kind)
+        elif len(args) < 1 then
+            _panic_unformatted(kind & ": " & fmt)
         else
-            write(io.stderr, std.format(kind & ": " & fmt, ..args))
+            _panic_unformatted(kind & ": " & std.format(fmt, ..args))
         end
-        exit(255)
     end
 
     #: string | null, ..any -> never
