@@ -224,7 +224,7 @@ module io
     end
 
     ## Write formatted arguments to file, without a newline.
-    #: File, string, ..any -> Error|nil
+    #: File, string, ..any -> { err = Error } | { ok = nil }
     func write(file, fmt, ..args)
         let text = format(fmt, ..args)
         let err = core.write(file.handle, text)
@@ -232,7 +232,7 @@ module io
     end
 
     ## Write formatted arguments to file, with a newline.
-    #: File, string, ..any -> void
+    #: File, string, ..any -> { err = Error } | { ok = nil }
     func writeln(file, fmt, ..args)
         return write(file, fmt & '\n', ..args)
     end
@@ -247,18 +247,19 @@ module io
         _ = write(file, fmt & '\n', ..args)
     end
 
-    ## Print each argument to stderr, with newline.
+    # ?? Maybe use stderr instead ?
+    ## Print each argument to stdout, with newline.
     ##
     ## Used for debugging.
     #: ..any -> void
     func log(..args)
         for i, arg in args do
             if i > 0 then
-                write(stderr, " ")
+                write(stdout, " ")
             end
-            write(stderr, "{}", to_string(arg))
+            write(stdout, "{}", to_string(arg))
         end
-        write(stderr, "\n")
+        write(stdout, "\n")
     end
 end
 

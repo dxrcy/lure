@@ -10,7 +10,7 @@
 
 # Implicit imports for every file/module
 let std = require("@std") # Or "std"
-let { print, println, #(...) } = std.prelude
+let { print, println, (...) } = std.prelude
 
 # Import a module
 let lib = require("lib")
@@ -21,29 +21,29 @@ let add = lib.add
 #: void -> int|nil
 #: {string} -> int|nil
 func main()
-    print("Hello World")
+    println("Hello World")
 
     # All variables and items are scoped by block
     
     let x = 2
     x = x + 3
     x += 3 # Advanced assignment operators are supported
-    print(x)
+    println(x)
 
     # Re-declaration of variable shadows original
     let x = 4
 
     if x > 3 then
-        print("> 3")
+        println("> 3")
     elif x == 2 then
-        print("== 2")
+        println("== 2")
     else
-        print("<= 3")
+        println("<= 3")
     end
     # (Alternative formatting)
     if x > 3
-        then print("> 3")
-        else print("<= 3")
+        then println("> 3")
+        else println("<= 3")
     end
 
     # Hopefully this can work
@@ -53,34 +53,33 @@ func main()
     end
 
     let s = "abc"
-    print(s)
+    log(s)
     let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
     s &= "def"
-    print(s, s2)
+    println(s, s2)
 
     # Simple range for-loop
     for i in 0 to 10 do
-        print(i) # 0, 1, ... 9
+        log(i) # 0, 1, ... 9
     end
     for i in 0 to len(list) do
-        printf("{}: {}\n", i, list[i])
+        println("{}: {}\n", i, list[i])
     end
 
     let list = { 4, 5, 6 }
 
-    print(len(list))
+    println(len(list))
 
     for i in list do
-        printf("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+        println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
     end
     for i, item in list do
-        printf("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+        println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
     end
     for _, item in list do
-        printf("{}\n", item) # 4, 5, 6
+        println("{}\n", item) # 4, 5, 6
     end
     # ^ Underscore is used to ignore a value
-    # ^ Comma *may* be removed between values in this context?
 
     let dict = {
         a = 1,
@@ -88,13 +87,13 @@ func main()
     }
 
     for key in dict do
-        printf("{}: {}\n", key, dict[key]) # a: 1, b: 2
+        println("{}: {}\n", key, dict[key]) # a: 1, b: 2
     end
     for key, value in dict do
-        printf("{}: {}\n", key, value) # a: 1, b: 2
+        println("{}: {}\n", key, value) # a: 1, b: 2
     end
     for _, value in dict do
-        printf("{}\n", value) # 1 2
+        println("{}\n", value) # 1 2
     end
 
     let mixed = {
@@ -103,34 +102,34 @@ func main()
     }
 
     for key in mixed do
-        printf("{}: {}\n", key, mixed[key]) # 0: 4, a: 5
+        println("{}: {}\n", key, mixed[key]) # 0: 4, a: 5
     end
     for key, value in mixed do
-        printf("{}: {}\n", key, value) # 0: 4, a: 5
+        println("{}: {}\n", key, value) # 0: 4, a: 5
     end
     for _, value in mixed do
-        printf("{}\n", value) # 4, 5
+        println("{}\n", value) # 4, 5
     end
 
     let a = 0
     while a < 10 do
-        print(a)
+        log(a)
         a += 1
     end
 
     let a = 0
     while a do
-        print(a)
+        log(a)
         a += 1
         if a > 10 then
             break
         end
     end
 
-    print(add(5, 6))
-    print(lib.add(5, 6))
+    log(add(5, 6))
+    log(lib.add(5, 6))
 
-    print(lib.PI)
+    log(lib.PI)
 
     let john = as lib.Person {
         name = "John",
@@ -153,6 +152,7 @@ func main()
     assert(typeof(person), "never")
     
     # This also *might* throw an error?
+    # Unless modules are converted to tables
     assert(typeof(lib),    "never")
 
     # Spread operator
@@ -164,7 +164,7 @@ func main()
     let { name, .. } = john
     # Renaming fields
     let { name = johns_name } = john
-    print(johns_name)
+    println(johns_name)
     # No! Not allowed.
     let { name, _ } = john
     # Completely pointless. Use `_` instead. Throws error.
@@ -183,10 +183,10 @@ func main()
     # As a statement
     match x
         case 4 then
-            print("4")
+            println("4")
         case 5 then
-            print("5")
-            print("it is five")
+            println("5")
+            println("it is five")
         else
             "default"
     end
@@ -199,10 +199,10 @@ func main()
     end
 
     # Match guards
-    # Maybe use `if` instead of `where` if possible
+    # Maybe use `where` if `if` is not possible
     let foo = 9
     let y = match x
-        case 4 where foo == 9 then
+        case 4 if foo == 9 then
             "4 and foo == 9"
         case 4 then
             "4 but foo != 9"
@@ -215,9 +215,9 @@ func main()
     # Matching a table
     match john
         case { name = "John", .. } then
-            print("Hello John")
+            println("Hello John")
         else
-            print("Who are you")
+            println("Who are you")
     end
 end
 

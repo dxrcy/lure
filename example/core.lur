@@ -58,9 +58,9 @@ func to_string(value)
     # Something like:
     match typeof(value)
         case "nil"   then return "nil" end
-        case "string" then return value end
         case "char"   then todo() end
         case "number" then todo() end
+        case "string" then return value end
         case "bool" then
             if value 
                 then return "true"

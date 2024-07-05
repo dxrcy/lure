@@ -33,7 +33,6 @@ end
 #
 # Similar to metatables (I think)
 # No inheritance or anything.
-# No /private distinction.
 #
 # Note the `{...}` syntax used for the body, to mirror the table creation
 #

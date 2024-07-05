@@ -37,7 +37,6 @@ false
 as        # ??? 
 match
 case
-where     # Use `if` instead ?
 ```
 
 ## Operators / Special Characters
