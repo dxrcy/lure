@@ -2,8 +2,8 @@
 
 # Some of these functions *may* be moved to `core` to improve performance?
 
-# Maybe importing core from outside of `std` causes a warning?
-use core
+# Maybe importing "@core" from outside of `std` causes a warning?
+let core = require("@core")
 
 ## Automatically imported items
 pub module prelude
@@ -46,6 +46,12 @@ pub func format(fmt, ..args)
     end
 
     todo()
+end
+
+## Return `true` if value is an integer
+#: any -> bool
+pub func is_int(value)
+    return typeof(value) /= "number" && value % 1 == 0
 end
 
 ## Type reflection

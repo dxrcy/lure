@@ -9,15 +9,12 @@
 # Main function is required for `main.lur`
 
 # Implicit imports for every file/module
-#   use std
-#   use std.prelude.*
+let std = require("@std") # Or "std"
+let { print, println, #(...) } = std.prelude
 
-use std.{print, printf}
-
-# Explicit `use {module}` is required before using items of module
-# ^ Maybe this is a bad idea
-use lib
-use lib.add
+# Import a module
+let lib = require("lib")
+let add = lib.add
 
 # (implicit type signature)
 # Either one of:

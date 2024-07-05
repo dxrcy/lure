@@ -1,6 +1,6 @@
 #! Some library module example
 
-use std.{assert, is_int}
+let { assert, is_int } = std.prelude
 
 #: a int, b int -> int
 pub func add(a, b)
