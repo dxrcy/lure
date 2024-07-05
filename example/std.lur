@@ -9,19 +9,19 @@ let core = require("@core")
 module prelude
     # (inherit type signature and doc comments)
 
-    func exit = sys.exit
-    func panic = sys.panic
-    func todo = sys.todo
-    func assert = sys.assert
+    let exit = sys.exit
+    let panic = sys.panic
+    let todo = sys.todo
+    let assert = sys.assert
 
-    func print = io.print
-    func printf = io.printf
+    let print = io.print
+    let printf = io.printf
 
-    func typeof = reflection.typeof
+    let typeof = reflection.typeof
 
-    func len = len
-    func to_string = to_string
-    func format = format
+    let len = len
+    let to_string = to_string
+    let format = format
 end
 
 # The `..` operator is used for variadic arguments.
@@ -30,8 +30,8 @@ end
 # Passing `..list` or `..{ 3, 4 }` into another function passes every argument
 # individually, instead of passing the whole table.
 
-func len = core.len
-func to_string = core.to_string
+let len = core.len
+let to_string = core.to_string
 
 ## Format arguments to string
 #
@@ -56,13 +56,13 @@ end
 
 ## Type reflection
 module reflection
-    func typeof = core.typeof
+    let typeof = core.typeof
 end
 
 ## System
 module sys
     # (inherit type signature and doc comments)
-    func exit = core.exit
+    let exit = core.exit
 
     func panic(..message)
         if len(message) == 0 then
