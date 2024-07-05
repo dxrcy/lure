@@ -145,7 +145,7 @@ Each argument is converted to a string automatically.
 
 ## Actual types
 
-Returned, as strings, by `std.typeof`.
+Returned, as strings, by `std.type_of`.
 No further type information is given.
 
 Maybe change `number` to `int` and `float` ?
@@ -159,6 +159,10 @@ string
 table
 func
 ```
+
+Tables are passed by reference always.
+
+Functions can interact with variables in their parent scope.
 
 ## Type-comment types
 
@@ -239,34 +243,38 @@ Generics??? Ideally!!
 
 ```
 # Similar to Haskell
+a -> a
 # Maybe `a` should be explicitely declared
-a, a -> a
+[a] a -> a
+a :: a -> a
+a -> a :: a
 ```
 
 ### Type-comment coersion
 
-Given in the form `x -> y`, reading "`x` can be coerced to `y`".
+Given in the form `x => y`, reading "`x` can be coerced to `y`".
 
 #### Generic subtypes
 
 ```
-a   -> any
-a   -> a | b
-b   -> a | b
-{a} -> table
+a   => any
+a   => a | b
+b   => a | b
+{a} => table
 ```
 
 #### Normal subtypes
 
 ```
-int        -> number
-func (...) -> func
+int        => number
+func (...) => func
+char       => string
 ```
 
 #### Equivalent types
 
 ```
-string <-> {char}
-void   <-> never    # Idk about this one
+string <=> {char}
+void   <=> never    # Idk about this one
 ```
 

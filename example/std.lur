@@ -5,10 +5,10 @@
 
 let core = require("@core")
 
+# Variable re-exports inherit type signature and doc comments
+
 ## Automatically imported items
 module prelude
-    # (inherit type signature and doc comments)
-
     let io = io
     let sys = sys
     let math = math
@@ -24,9 +24,10 @@ module prelude
 
     let type_of = reflection.type_of
 
-    let len = len
-    let to_string = to_string
-    let format = format
+    let len = util.len
+    let to_string = util.to_string
+    let format = util.format
+    let is_int = util.is_int
 end
 
 # The `..` operator is used for variadic arguments.
@@ -35,76 +36,75 @@ end
 # Passing `..list` or `..{ 3, 4 }` into another function passes every argument
 # individually, instead of passing the whole table.
 
-let len = core.len
-let to_string = core.to_string
-let compare = core.compare
+module util
+    let len = core.len
+    let to_string = core.to_string
+    let compare = core.compare
 
-## Format arguments to string
-#
-# Rust-style formatting
-#: string, ..any -> string
-func format(fmt, ..args)
-    let result = _format_safe(fmt, ..args)
-    match result
-        case { ok } then return ok
-        else panic(result.err)
-    end
-end
-
-#: string, ..any -> { ok = string } | { err = string }
-func _format_safe(fmt, ..args)
-    if fmt == nil then
-        return ""
-    end
-    if len(args) == 0 then
-        return fmt
-    end
-
-    let output = ""
-    let arg_index = 0
-
-    for i in 0 to len(fmt) do
-        match fmt[i]
-        case '{' then
-            i += 1
-            if i >= len(fmt) then
-                return { err = "Unexpected end of format string. Expected `}}`" }
-            end
-            if fmt[i] == '{' then
-                output &= '{'
-                continue
-            else if fmt[i] /= '}' then
-                return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
-            end
-            if arg_index >= len(args) then
-                return { err = "Not enough arguments" }
-            else
-                output &= to_string(args[arg_index])
-                arg_index += 1
-            end
-        case '}' then
-            i += 1
-            if fmt[i] == '}' then
-                output &= '}'
-            else
-                return { err = "Unexpected `}}`" }
-            end
-        else
-            output &= fmt[i]
+    ## Format arguments to string
+    ##
+    ## Rust-style formatting
+    #: string, ..any -> string
+    func format(fmt, ..args)
+        let result = _format_safe(fmt, ..args)
+        match result
+            case { ok } then return ok
+            else panic(result.err)
         end
     end
 
-    if arg_index + 1 < len(args) then
-        return { err = "Too many arguments" }
+    #: string, ..any -> { ok = string } | { err = string }
+    func _format_safe(fmt, ..args)
+        if fmt == nil then
+            return ""
+        elif len(args) == 0 then
+            return fmt
+        end
+
+        let output = ""
+        let arg_index = 0
+
+        for i in 0 to len(fmt) do
+            match fmt[i]
+            case '{' then
+                i += 1
+                if i >= len(fmt) then
+                    return { err = "Unexpected end of format string. Expected `}}`" }
+                elif fmt[i] == '{' then
+                    output = output & '{'
+                    continue
+                elif fmt[i] /= '}' then
+                    return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
+                end
+                if arg_index >= len(args) then
+                    return { err = "Not enough arguments" }
+                end
+                output = output & to_string(args[arg_index])
+                arg_index += 1
+            case '}' then
+                i += 1
+                if fmt[i] == '}' then
+                    output = output & '}'
+                else
+                    return { err = "Unexpected `}}`" }
+                end
+            else
+                output = output & fmt[i]
+            end
+        end
+
+        if arg_index + 1 < len(args) then
+            return { err = "Too many arguments" }
+        end
+
+        return { ok = output }
     end
 
-    return { ok = output }
-end
-
-## Return `true` if value is an integer
-#: any -> bool
-func is_int(value)
-    return type_of(value) /= "number" && value % 1 == 0
+    ## Return `true` if value is an integer
+    #: any -> bool
+    func is_int(value)
+        return type_of(value) /= "number" && value % 1 == 0
+    end
 end
 
 ## Type reflection
@@ -153,20 +153,24 @@ module sys
         end
         _panic_kind("assertion failed", fmt, ..args)
     end
+
+    #: ..string -> int
+    func command(..args)
+        return core.system(args)
+    end
 end
 
 ## Input/Output
 module io
-    # Maybe use path="/dev/std*" instead
     ## Standard out
     #: File
-    let stdin  = as File { path = nil, handle = core.stdin }
+    let stdin  = as File { path = "/dev/stdin", handle = core.stdin }
     ## Standard in
     #: File
-    let stdout = as File { path = nil, handle = core.stdout }
+    let stdout = as File { path = "/dev/stdout", handle = core.stdout }
     ## Standard error
     #: File
-    let stderr = as File { path = nil, handle = core.stderr }
+    let stderr = as File { path = "/dev/stderr", handle = core.stderr }
 
     ## I/O error
     template Error {
@@ -179,15 +183,15 @@ module io
     ## Open file
     template File {
         #: string
-        path
+        path,
         #: int
-        handle
+        handle,
         # put a buffer or something here ideally...
 
         #: string, string -> { err = Error } | { ok = File }
         func open(path, mode)
             let { err, handle } = core.open(path, mode)
-            return result_from(err, as File {
+            return io._result_from(err, as File {
                 path = filename,
                 handle = handle
             })
@@ -196,7 +200,7 @@ module io
         #: (File) -> { err = Error } | { ok = nil }
         func close(self)
             let err = core.close(self.handle)
-            return result_from(err, nil)
+            return io._result_from(err, nil)
         end
 
         func read(self, (..)) todo() end
@@ -205,7 +209,7 @@ module io
         #: (File) -> { err = Error } | { ok = string }
         func read_line(self)
             let { err, line } = core.read_line(self.handle)
-            return result_from(err, line)
+            return io._result_from(err, line)
         end
 
         ## Write formatted arguments to file, without a newline.
@@ -213,7 +217,7 @@ module io
         func write(self, fmt, ..args)
             let text = format(fmt, ..args)
             let err = core.write(self.handle, text)
-            return result_from(err)
+            return io._result_from(err)
         end
 
         # RENAME to match with `read_line` !!!
@@ -226,7 +230,7 @@ module io
 
     ## Convert an IO error code to an Error
     #: int, a -> { err = Error } | { ok = a }
-    func result_from(code, ok)
+    func _result_from(code, ok)
         let message = match code
             case 0 then return { ok = ok }
             case 1 then "Not found"
@@ -271,7 +275,7 @@ module io
             if i > 0 then
                 print(" ")
             end
-            print("{}", to_string(arg))
+            print("{}", arg)
         end
         println()
     end
@@ -283,21 +287,16 @@ module math
     let PI = 3.141592653589793
 
     let floor = core.floor
+    let random = core.random
 
-    # Generate a random number in the range [0, 1)
-    #: void -> number
-    func random()
-        return core.random()
-    end
-
-    # Generate a random float in the range [min, max)
-    # number, number -> number
+    ## Generate a random float in the range [min, max)
+    #: number, number -> number
     func random_float(min, max)
         return min + random() * (max - min)
     end
 
-    # Generate a random integer in the range [min, max)
-    # int, int -> int
+    ## Generate a random integer in the range [min, max)
+    #: int, int -> int
     func random_int(min, max)
         return floor(random_float(min, max))
     end

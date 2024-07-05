@@ -32,6 +32,14 @@ let fib = func(n)
     return result
 end
 
+#: { a }, func(a -> b) -> { b }
+func map(table, fun)
+    for key, value in table do
+        table[key] = fun(value)
+    end
+    return table
+end
+
 # Templates
 #
 # Similar to metatables (I think)
