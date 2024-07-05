@@ -23,7 +23,7 @@ func main(args)
         let incorrect = {}
 
         while true do
-            for _ in 1 to 5 do
+            for _ in 0 to 5 do
                 print("\033[A\033[K")
             end
 
@@ -43,14 +43,14 @@ func main(args)
                 println("You win! :)")
                 println("The word was: '{}'\n", word)
                 println("---------")
-                _ = io.read()
+                _ = io.scan_line()
                 break
             elif len(incorrect) >= 6 then
                 println("---------")
                 println("You lose! :(")
                 println("The word was: '{}'\n", word)
                 println("---------")
-                _ = io.read()
+                _ = io.scan_line()
                 break
             end
 
@@ -62,7 +62,7 @@ func main(args)
             print_set(incorrect)
             print("Guess: ")
 
-            let line = io.read()
+            let line = io.scan_line()
             if len(line) >= 1 then
                 let guess = line[0]
 
@@ -82,7 +82,7 @@ end
 
 #: string -> { string } | nil
 func read_file_lines(filename)
-    let { err, file } = io.open(filename, "r")
+    let { err, file } = File.open(filename, "r")
     if err /= nil then
         return nil
     end
@@ -97,12 +97,12 @@ func read_file_lines(filename)
             break
         end
         if line[-1] == '\r' then
-            line = line.slice(0, -1)
+            line = line[0, -1]
         end
-        lines[len(lines)] = line
+        lines.push(line)
     end
 
-    io.close(file)
+    file.close()
     return lines
 end
 

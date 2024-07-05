@@ -20,8 +20,9 @@ module prelude
 
     let print = io.print
     let println = io.println
+    let File = io.File
 
-    let typeof = reflection.typeof
+    let type_of = reflection.type_of
 
     let len = len
     let to_string = to_string
@@ -122,7 +123,7 @@ module sys
         exit(255)
     end
 
-    #: string, string | null, ..any -> never
+    #: string, string | nil, ..any -> never
     func _panic_kind(kind, fmt, ..args)
         if fmt == nil then
             _panic_unformatted(kind)
@@ -133,19 +134,19 @@ module sys
         end
     end
 
-    #: string | null, ..any -> never
+    #: string | nil, ..any -> never
     func panic(fmt, ..args)
         _panic_kind("panic", fmt, ..args)
     end
 
     ## Panic with 'to do' message
-    #: string | null, ..any -> never
+    #: string | nil, ..any -> never
     func todo(fmt, ..args)
         _panic_kind("todo", fmt, ..args)
     end
 
     ## Panic with 'assertion failed' message, if condition not met
-    #: bool, string | null, ..any -> void
+    #: bool, string | nil, ..any -> void
     func assert(condition, fmt, ..args)
         if condition then
             return
@@ -167,27 +168,60 @@ module io
     #: File
     let stderr = as File { path = nil, handle = core.stderr }
 
-    ## Open file
-    template File {
-        #: string
-        path
-        #: int
-        handle
-        # a buffer or something ideally...
-
-        #: (File) -> { err = Error } | { ok = string }
-        func read_line(self)
-            let { err, line } = core.read_line(self.handle)
-            return result_from(err, line)
-        end
-    }
-
     ## I/O error
     template Error {
         #: int
         code,
         #: string
         message,
+    }
+
+    ## Open file
+    template File {
+        #: string
+        path
+        #: int
+        handle
+        # put a buffer or something here ideally...
+
+        #: string, string -> { err = Error } | { ok = File }
+        func open(path, mode)
+            let { err, handle } = core.open(path, mode)
+            return result_from(err, as File {
+                path = filename,
+                handle = handle
+            })
+        end
+
+        #: (File) -> { err = Error } | { ok = nil }
+        func close(self)
+            let err = core.close(self.handle)
+            return result_from(err, nil)
+        end
+
+        func read(self, (..)) todo() end
+
+        ## Read a line from file
+        #: (File) -> { err = Error } | { ok = string }
+        func read_line(self)
+            let { err, line } = core.read_line(self.handle)
+            return result_from(err, line)
+        end
+
+        ## Write formatted arguments to file, without a newline.
+        #: (File), string, ..any -> { err = Error } | { ok = nil }
+        func write(self, fmt, ..args)
+            let text = format(fmt, ..args)
+            let err = core.write(self.handle, text)
+            return result_from(err)
+        end
+
+        # RENAME to match with `read_line` !!!
+        ## Write formatted arguments to file, with a newline.
+        #: (File), string, ..any -> { err = Error } | { ok = nil }
+        func write_line(self, fmt, ..args)
+            return write(self, fmt & '\n', ..args)
+        end
     }
 
     ## Convert an IO error code to an Error
@@ -205,47 +239,26 @@ module io
                 message = message,
             }
         }
- }
     end
 
-    #: string, string -> { err = Error } | { ok = File }
-    func open(path, mode)
-        let { err, handle } = core.open(path, mode)
-        return result_from(err, as File {
-            path = filename,
-            handle = handle
-        })
+    ## Read from stdin
+    #: void -> string
+    func scan_line()
+        let result = stdin.read_line()
+        assert(result.err == nil)
+        return result.ok
     end
 
-    # Maybe move to File.close
-    #: File -> { err = Error } | { ok = nil }
-    func close(file)
-        let err = core.close(file.handle)
-        return result_from(err, nil)
-    end
-
-    ## Write formatted arguments to file, without a newline.
-    #: File, string, ..any -> { err = Error } | { ok = nil }
-    func write(file, fmt, ..args)
-        let text = format(fmt, ..args)
-        let err = core.write(file.handle, text)
-        return result_from(err)
-    end
-
-    ## Write formatted arguments to file, with a newline.
-    #: File, string, ..any -> { err = Error } | { ok = nil }
-    func writeln(file, fmt, ..args)
-        return write(file, fmt & '\n', ..args)
-    end
     ## Print formatted arguments to stdout, without a newline.
     #: string, ..any -> void
     func print(fmt, ..args)
-        _ = write(stdout, fmt, ..args)
+        assert(stdout.write(fmt, ..args).err == nil)
     end
+
     ## Print formatted arguments to stdout, with a newline.
     #: string, ..any -> void
     func println(fmt, ..args)
-        _ = write(file, fmt & '\n', ..args)
+        assert(stdout.write(fmt & '\n', ..args).err == nil)
     end
 
     # ?? Maybe use stderr instead ?
@@ -256,11 +269,11 @@ module io
     func log(..args)
         for i, arg in args do
             if i > 0 then
-                write(stdout, " ")
+                print(" ")
             end
-            write(stdout, "{}", to_string(arg))
+            print("{}", to_string(arg))
         end
-        write(stdout, "\n")
+        println()
     end
 end
 

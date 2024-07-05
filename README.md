@@ -37,6 +37,7 @@ false
 as        # ??? 
 match
 case
+self      # Maybe it wont be a keyword ??
 ```
 
 ## Operators / Special Characters

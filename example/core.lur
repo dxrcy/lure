@@ -123,7 +123,7 @@ end
 func compare(value, other)
     # Something like:
     match { type_of(value), type_of(other) }
-        case { "null", "null" }     then return 0
+        case { "nil", "nil" }       then return 0
         case { "bool", "bool" }     then todo()
         case { "number", "number" } then todo() # Near-enough floats should return 0
         case { "char", "char" }     then todo()
