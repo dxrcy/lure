@@ -13,7 +13,6 @@ At the moment is is just a concept...
 ```
 let
 func
-pub
 module
 template
 end
@@ -35,7 +34,6 @@ or
 nil       # Use `null` instead ?
 true
 false
-use
 as        # ??? 
 match
 case

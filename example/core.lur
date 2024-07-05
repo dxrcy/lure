@@ -6,40 +6,40 @@
 #! Only shown here for documentation purposes.
 
 #: int -> never
-pub func exit(code) end
+func exit(code) end
 
 #: string -> never
-pub func panic(message) end
+func panic(message) end
 
 #: any -> string
-pub func typeof(value) end
+func typeof(value) end
 
 #: path, int -> int, int
-pub func open(path, mode) end
+func open(path, mode) end
 
 #: int -> int
-pub func close(file_handle) end
+func close(file_handle) end
 
 #: int, text -> int
-pub func write(file_handle, text) end
+func write(file_handle, text) end
 
 #: int -> int, text
-pub func read(file_handle, length) end
+func read(file_handle, length) end
 
 #: int -> int, text
-pub func read_line(file_handle) end
+func read_line(file_handle) end
 
 # TODO: idk what to do for files...
 
 #: int
-pub let stdout = 0
+let stdout = 0
 #: int
-pub let stdin = 1
+let stdin = 1
 #: int
-pub let stderr = 2
+let stderr = 2
 
 #: any -> int
-pub func len(value)
+func len(value)
     # Something like:
     match typeof(value)
         case "nil"   then return 0 end
@@ -57,7 +57,7 @@ pub func len(value)
 end
 
 #: any -> string
-pub func to_string(value)
+func to_string(value)
     # Something like:
     match typeof(value)
         case "nil"   then return "nil" end
@@ -81,5 +81,5 @@ end
 
 # Used by the `+` operator
 #: a, a -> a
-pub func add(value, other) end
+func add(value, other) end
 

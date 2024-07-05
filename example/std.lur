@@ -6,22 +6,22 @@
 let core = require("@core")
 
 ## Automatically imported items
-pub module prelude
+module prelude
     # (inherit type signature and doc comments)
 
-    pub func exit = sys.exit
-    pub func panic = sys.panic
-    pub func todo = sys.todo
-    pub func assert = sys.assert
+    func exit = sys.exit
+    func panic = sys.panic
+    func todo = sys.todo
+    func assert = sys.assert
 
-    pub func print = io.print
-    pub func printf = io.printf
+    func print = io.print
+    func printf = io.printf
 
-    pub func typeof = reflection.typeof
+    func typeof = reflection.typeof
 
-    pub func len = len
-    pub func to_string = to_string
-    pub func format = format
+    func len = len
+    func to_string = to_string
+    func format = format
 end
 
 # The `..` operator is used for variadic arguments.
@@ -30,14 +30,14 @@ end
 # Passing `..list` or `..{ 3, 4 }` into another function passes every argument
 # individually, instead of passing the whole table.
 
-pub func len = core.len
-pub func to_string = core.to_string
+func len = core.len
+func to_string = core.to_string
 
 ## Format arguments to string
 #
 # Rust-style formatting
 #: string, ..any -> string
-pub func format(fmt, ..args)
+func format(fmt, ..args)
     if fmt == nil then
         return ""
     end
@@ -50,21 +50,21 @@ end
 
 ## Return `true` if value is an integer
 #: any -> bool
-pub func is_int(value)
+func is_int(value)
     return typeof(value) /= "number" && value % 1 == 0
 end
 
 ## Type reflection
-pub module reflection
-    pub func typeof = core.typeof
+module reflection
+    func typeof = core.typeof
 end
 
 ## System
-pub module sys
+module sys
     # (inherit type signature and doc comments)
-    pub func exit = core.exit
+    func exit = core.exit
 
-    pub func panic(..message)
+    func panic(..message)
         if len(message) == 0 then
             core.panic("panic")
         else
@@ -74,7 +74,7 @@ pub module sys
 
     ## Panic with 'to do' message
     #: ..any -> never
-    pub func todo(..message)
+    func todo(..message)
         if len(message) > 0 then
             panic("to do:", ..message)
         else
@@ -84,7 +84,7 @@ pub module sys
 
     ## Panic with 'assertion failed' message, if condition not met
     #: bool -> void
-    pub func assert(condition, ..message)
+    func assert(condition, ..message)
         if condition then
             return
         end
@@ -101,16 +101,16 @@ module io
     # Maybe use path="/dev/std*" instead
     ## Standard out
     #: File
-    pub let stdin  = as File { path = nil, handle = core.stdin }
+    let stdin  = as File { path = nil, handle = core.stdin }
     ## Standard in
     #: File
-    pub let stdout = as File { path = nil, handle = core.stdout }
+    let stdout = as File { path = nil, handle = core.stdout }
     ## Standard error
     #: File
-    pub let stderr = as File { path = nil, handle = core.stderr }
+    let stderr = as File { path = nil, handle = core.stderr }
 
     ## Open file
-    pub template File {
+    template File {
         #: string
         path
         #: int
@@ -134,7 +134,7 @@ module io
     }
 
     ## I/O error
-    pub template Error {
+    template Error {
         #: int
         code,
         #: string
@@ -158,7 +158,7 @@ module io
     end
 
     #: string, string -> Error|nil, File|nil
-    pub func open(path, mode)
+    func open(path, mode)
         let err, handle = core.open(path, mode)
         if err /= nil then
             return result_from(err), nil
@@ -171,7 +171,7 @@ module io
 
     ## Write formatted arguments to file, without a newline.
     #: File, string, ..any -> Error|nil
-    pub func write(file, fmt, ..args)
+    func write(file, fmt, ..args)
         let text = format(fmt, ..args)
         let err = core.write(file.handle, text)
         return result_from(err)
@@ -179,17 +179,17 @@ module io
 
     ## Write formatted arguments to file, with a newline.
     #: File, string, ..any -> void
-    pub func writeln(file, fmt, ..args)
+    func writeln(file, fmt, ..args)
         return write(file, fmt & '\n', ..args)
     end
     ## Print formatted arguments to stdout, without a newline.
     #: string, ..any -> void
-    pub func print(fmt, ..args)
+    func print(fmt, ..args)
         _ = write(stdout, fmt, ..args)
     end
     ## Print formatted arguments to stdout, with a newline.
     #: string, ..any -> void
-    pub func println(fmt, ..args)
+    func println(fmt, ..args)
         _ = write(file, fmt & '\n', ..args)
     end
 
@@ -197,7 +197,7 @@ module io
     ##
     ## Used for debugging.
     #: ..any -> void
-    pub func log(..args)
+    func log(..args)
         for i, arg in args do
             if i > 0 then
                 write(stderr, " ")
@@ -209,8 +209,8 @@ module io
 end
 
 ## Math(s)
-pub module math
+module math
     ## PI
-    pub let PI = 3.141592653589793
+    let PI = 3.141592653589793
 end
 

@@ -2,7 +2,7 @@
 
 # A file is a module
 # Modules can only contain 'items':
-#   (pub) let|func|template|module
+#   let|func|template|module
 #
 # Note that a `let` variable in a module acts as a constant
 

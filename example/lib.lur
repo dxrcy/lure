@@ -3,16 +3,16 @@
 let { assert, is_int } = std.prelude
 
 #: a int, b int -> int
-pub func add(a, b)
+func add(a, b)
     return a + b
 end
 
-pub let PI = std.math.PI
+let PI = std.math.PI
 
 let fib_memory = {}
 
 #: int -> int
-pub func fib(n)
+func fib(n)
     # panics if not met
     assert(is_int(n) and n >= 0)
 
@@ -33,7 +33,7 @@ end
 #
 # Similar to metatables (I think)
 # No inheritance or anything.
-# No public/private distinction.
+# No /private distinction.
 #
 # Note the `{...}` syntax used for the body, to mirror the table creation
 #
@@ -42,7 +42,7 @@ end
 # Default fields and methods will be automatically included in the table.
 
 ## A person
-pub template Person = {
+template Person = {
     # Required fields. If a table is defined with the template, and these
     # values are not supplied, the interpreter will throw an error (or at least
     # a warning)
@@ -82,7 +82,7 @@ pub template Person = {
     end
 }
 
-pub template Vector = {
+template Vector = {
     #: int
     x = 0,
     #: int
