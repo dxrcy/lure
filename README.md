@@ -157,6 +157,7 @@ number (f64)
 char    # Maybe this is a bad idea?
 string
 table
+func
 ```
 
 ## Type-comment types

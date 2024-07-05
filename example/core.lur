@@ -39,9 +39,6 @@ let stderr = 2
 func len(arg)
     # Something like:
     match type_of(arg)
-        case "nil"    then return 0
-        case "bool"   then return 0
-        case "number" then return 0
         case "char"   then return 1
         case "string" then todo() end
         case "table" then
@@ -49,6 +46,8 @@ func len(arg)
                 then return arg.@len()
                 else todo()
             end
+        case "func" then todo() # Argument count maybe ?
+        else return 0 # Or panic
     end
 end
 
@@ -68,8 +67,11 @@ func to_string(arg)
         case "table" then
             if arg.@to_string /= nil
                 then return arg.@to_string()
-                else todo() # Something like `<type@line>`
+                else todo() # Serialize each item like `{ abc = 123 }`
             end
+        case "func"
+            then todo() # Something like `<name@line>`
+        else todo()
     end
 end
 
@@ -147,8 +149,10 @@ func compare(arg, other)
         case { "table", "table" } then
             if arg.@compare /= nil
                 then return arg.@compare(other)
-                else todo() # Maybe just return non-zero always ?
+                else todo() # 0 if same reference ?
             end
+        case { "func", "func" } then
+            todo() # 0 if same pointer ? Or always non-zero ?
         else return false # Mismatched types
     end
 end
