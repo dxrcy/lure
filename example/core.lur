@@ -11,19 +11,19 @@ func exit(code) end
 #: any -> string
 func typeof(value) end
 
-#: path, int -> int, int
+#: path, int -> { int, int }
 func open(path, mode) end
 
 #: int -> int
 func close(file_handle) end
 
-#: int, text -> int
+#: int, string -> int
 func write(file_handle, text) end
 
-#: int -> int, text
+#: int -> { int, string }
 func read(file_handle, length) end
 
-#: int -> int, text
+#: int -> { int, string }
 func read_line(file_handle) end
 
 # TODO: idk what to do for files...

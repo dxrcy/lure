@@ -170,19 +170,10 @@ module io
         handle
         # a buffer or something ideally...
 
-        #: (File) -> Error|nil
-        func close(self)
-            let err = core.close(self.handle)
-            return result_from(err)
-        end
-
-        #: (File) -> Error|nil, string|nil
+        #: (File) -> { err = Error } | { ok = string }
         func read_line(self)
-            let err, line = core.read_line(self.handle)
-            if err == nil then
-                return result_from(err), nil
-            end
-            return nil, line
+            let { 0=err, 1=line } = core.read_line(self.handle)
+            return result_from(err, line)
         end
     }
 
@@ -194,32 +185,38 @@ module io
         message,
     }
 
-    # Move to `Error.from`
-    ## Convert an error code to an Error
-    #: int -> Error|nil
-    func result_from(code)
+    ## Convert an IO error code to an Error
+    #: int, a -> { err = Error } | { ok = a }
+    func result_from(code, ok)
         let message = match code
-            case 0 then return nil
+            case 0 then return { ok = ok }
             case 1 then "Not found"
             # ...
             else "Unknown error"
         end
-        return as Error {
-            code = code,
-            message = message,
+        return {
+            err = as Error {
+                code = code,
+                message = message,
+            }
         }
+ }
     end
 
-    #: string, string -> Error|nil, File|nil
+    #: string, string -> { err = Error } | { ok = File }
     func open(path, mode)
-        let err, handle = core.open(path, mode)
-        if err /= nil then
-            return result_from(err), nil
-        end
-        return nil, as File {
+        let { 0=err, 1=handle } = core.open(path, mode)
+        return result_from(err, as File {
             path = filename,
             handle = handle
-        }
+        })
+    end
+
+    # Maybe move to File.close
+    #: File -> { err = Error } | { ok = nil }
+    func close(file)
+        let err = core.close(file.handle)
+        return result_from(err, nil)
     end
 
     ## Write formatted arguments to file, without a newline.

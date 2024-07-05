@@ -201,6 +201,12 @@ string | nil
 # Combining unions and tables
 { int:bool } | { string:int }
 { string | int } | nil
+# Heterogenous positional tables
+{ string, bool }
+
+# Results as tables
+{ err = string } | { ok = int }
+# Note that { <err>, <ok> } is used in `core`
 
 # Functions
 int, int -> int
@@ -221,6 +227,14 @@ Maybe at some point these will be added for nicer syntax:
 # Custom types in type-comments ??
 # Idk how this would work
 file
+
+# Result syntax
+# This would be nice
+string!int
+
+# Nil syntax
+# This is not as necessary
+?string
 ```
 
 Generics??? Ideally!!

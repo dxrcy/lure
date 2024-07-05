@@ -1,4 +1,4 @@
-let { io, fs } = std
+let io = std.io
 
 func main(args)
     println("=== HANGMAN ===")
@@ -84,7 +84,7 @@ end
 
 #: string -> { string } | nil
 func read_file_lines(filename)
-    let err, file = io.open(filename, "r")
+    let { err, file } = io.open(filename, "r")
     if err /= nil then
         return nil
     end
@@ -103,8 +103,8 @@ func read_file_lines(filename)
         end
         lines[len(lines)] = line
     end
-    file.close()
 
+    io.close(file)
     return lines
 end
 
