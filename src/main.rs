@@ -14,6 +14,182 @@ fn main() {
         // }
         println!("{:?}", token);
     }
+
+    let source = parse_source_module(tokens).expect("Failed to parse source module");
+
+    println!("{:?}", source);
+}
+
+fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, String> {
+    let mut tokens = tokens.into_iter();
+
+    let module = parse_module_statements(&mut tokens)?;
+
+    Ok(SourceModule {
+        module,
+        linked: vec![],
+    })
+}
+
+fn parse_module_statements(
+    tokens: &mut impl Iterator<Item = Token>,
+) -> Result<StatementList, String> {
+    todo!();
+}
+
+#[derive(Debug)]
+struct SourceModule {
+    module: StatementList,
+    linked: Vec<Module>,
+}
+
+#[derive(Debug)]
+struct Module {
+    name: ModuleName,
+    statements: StatementList,
+}
+
+type ModuleName = String;
+
+type StatementList = Vec<Statement>;
+
+#[derive(Debug)]
+enum Statement {
+    Expr(Expr),
+    Func(Func),
+    Let(Let),
+    Assign(Assign),
+    If(If),
+    Match(Match),
+    While(While),
+    For(For),
+    Module(Module),
+    //TODO: Template
+}
+
+#[derive(Debug)]
+struct Func {
+    name: Ident,
+    params: Params,
+}
+
+type Ident = String;
+
+#[derive(Debug)]
+struct IdentPath {
+    parents: Vec<Ident>,
+    name: Ident,
+}
+
+#[derive(Debug)]
+struct Params {
+    params: Vec<Ident>,
+    rest: Option<Ident>,
+}
+
+#[derive(Debug)]
+struct Let {
+    //TODO: Support destructuring
+    name: Ident,
+    value: Expr,
+}
+
+#[derive(Debug)]
+struct Assign {
+    name: Ident,
+    value: Expr,
+}
+
+#[derive(Debug)]
+enum Expr {
+    Literal(Literal),
+    UnaryOp(UnaryOp, Box<Expr>),
+    BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
+    IdentPath(IdentPath),
+    Call(IdentPath, Params),
+    If(If),
+    Match(Match),
+    Table(Table),
+}
+
+#[derive(Debug)]
+enum UnaryOp {
+    Not,
+    Negative,
+}
+
+#[derive(Debug)]
+enum BinaryOp {
+    Add,
+    Multiply,
+    Subtract,
+    Divide,
+    Modulo,
+    Concat,
+    And,
+    Or,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
+}
+
+#[derive(Debug)]
+struct If {
+    if_: Box<ConditionalBranch>,
+    elifs: Vec<ConditionalBranch>,
+    else_: Option<StatementList>,
+}
+
+#[derive(Debug)]
+struct ConditionalBranch {
+    condition: Expr,
+    body: StatementList,
+}
+
+#[derive(Debug)]
+struct Match {
+    pattern: Box<Expr>,
+    branches: Vec<MatchBranch>,
+}
+
+#[derive(Debug)]
+struct MatchBranch {
+    //TODO: Restrict expressions and support destructuring
+    pattern: Expr,
+    //TODO: Add if guards
+    body: StatementList,
+}
+
+#[derive(Debug)]
+struct For {
+    idents: Vec<Ident>,
+    source: ForSource,
+    body: StatementList,
+}
+
+#[derive(Debug)]
+enum ForSource {
+    Range(Expr, Expr),
+    Iterable(Expr),
+}
+
+#[derive(Debug)]
+struct While {
+    branch: ConditionalBranch,
+}
+
+#[derive(Debug)]
+struct Table {
+    items: Vec<TableItem>,
+}
+
+#[derive(Debug)]
+enum TableItem {
+    Positional(usize, Box<Expr>),
+    Named(Ident, Box<Expr>),
 }
 
 #[derive(Debug)]
@@ -86,15 +262,15 @@ make_keyword! {
     "}" => BraceRight,
     "[" => BracketLeft,
     "]" => BracketRight,
-    "=" => Assign,
+    "=" => SingleEqual,
     "," => Comma,
     "." => Dot,
-    "==" => Equal,
+    "==" => DoubleEqual,
     "/=" => NotEqual,
-    ">" => GreaterThan,
     "<" => LessThan,
-    ">=" => GreaterThanOrEqual,
+    ">" => GreaterThan,
     "<=" => LessThanOrEqual,
+    ">=" => GreaterThanOrEqual,
     "+" => Plus,
     "-" => Dash,
     "*" => Asterisk,
@@ -110,9 +286,12 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
 
     let mut chars = Backtrackable::<4, _>::from(file.chars());
 
-    while let Some(ch) = chars.next() {
+    while let Some(mut ch) = chars.next() {
         if !is_valid_char(ch) {
             return Err(format!("Invalid character: 0x{:02x}", ch as u8));
+        }
+        if ch.is_whitespace() {
+            continue;
         }
         if ch == '#' {
             while let Some(ch) = chars.next() {
@@ -120,8 +299,24 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
                     break;
                 }
             }
-        } else if let Some(keyword) = parse_delim(ch) {
+            continue;
+        }
+        if let Some(keyword) = parse_delim(ch) {
             tokens.push(Token::Keyword(keyword));
+        } else if ch == '"' || ch == '\'' {
+            let quote = ch;
+            let is_char = quote == '\'';
+            let mut string = String::new();
+            while let Some(ch) = chars.next() {
+                if ch == '"' {
+                    break;
+                }
+                string.push(ch);
+                if is_char {
+                    break;
+                }
+            }
+            tokens.push(Token::Literal(Literal::String(string)));
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
             while let Some(ch) = chars.next() {
@@ -155,22 +350,6 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
             }
             let number: f64 = number.parse().expect("Number should be valid");
             tokens.push(Token::Literal(Literal::Number(number)));
-        } else if ch == '"' || ch == '\'' {
-            let quote = ch;
-            let is_char = quote == '\'';
-            let mut string = String::new();
-            while let Some(ch) = chars.next() {
-                if ch == '"' {
-                    break;
-                }
-                string.push(ch);
-                if is_char {
-                    break;
-                }
-            }
-            tokens.push(Token::Literal(Literal::String(string)));
-        } else if ch.is_whitespace() {
-            continue;
         } else {
             let ident_is_punct = is_punct(ch);
             let mut ident = String::from(ch);
@@ -214,7 +393,7 @@ fn is_punct(ch: char) -> bool {
 fn parse_delim(ch: char) -> Option<Keyword> {
     Some(match ch {
         '(' => Keyword::ParenLeft,
-        ')' => Keyword::ParenLeft,
+        ')' => Keyword::ParenRight,
         '{' => Keyword::BraceLeft,
         '}' => Keyword::BraceRight,
         '[' => Keyword::BracketLeft,

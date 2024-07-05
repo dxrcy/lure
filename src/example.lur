@@ -1,7 +1,7 @@
 # ok
 func main()
     print("Hello. World")
-    let abc = 2.3
+    let abc =  - 2.3
     let def = {
         adw = 24
     }
