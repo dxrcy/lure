@@ -15,7 +15,7 @@
 
 # Implicit imports for every file/module
 let std = require("@std") # Or "std"
-let { print, println, (...) } = std.prelude
+let { print, println } = std.prelude
 
 # Import a module
 # Executes module when `require` expression is run

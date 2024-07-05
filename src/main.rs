@@ -1,69 +1,111 @@
+use std::fs;
+
 use lure::Backtrackable;
 
 fn main() {
-    let file = include_str!("example.lur");
+    let filename = "src/example.lur";
 
-    let tokens = parse_tokens(file).expect("Failed to parse tokens");
+    let file = fs::read_to_string(filename).expect("Failed to read file");
 
-    for token in tokens {
+    let tokens = parse_tokens(&file).expect("Failed to parse tokens");
+
+    for token in &tokens {
+        // if let Token::Ident(token) = token {
+        // }
         println!("{:?}", token);
     }
 }
 
 #[derive(Debug)]
-enum TokenTree {
-    Group(Delim, Vec<Token>),
-    Token(Token),
-}
-
-#[derive(Debug)]
-enum TokenPartial {
-    Delim { delim: Delim, is_left: bool },
-    Token(Token),
-}
-
-#[derive(Debug)]
 enum Token {
-    Literal(Literal),
-    Ident(String),
-    Punct(String),
     Keyword(Keyword),
+    Ident(String),
+    Literal(Literal),
 }
 
 #[derive(Debug)]
 enum Literal {
     String(String),
-    Number(f32),
+    Number(f64),
+    Bool(bool),
+    Nil,
 }
 
-#[derive(Debug)]
-enum Keyword {
-    Func,
-    Let,
-    End,
+macro_rules! make_keyword {
+    ( $( $token:literal => $name:ident ),* $(,)? ) => {
+        #[derive(Debug)]
+        enum Keyword {
+            $(
+                $name,
+            )*
+        }
+
+        impl TryFrom<&str> for Keyword {
+            type Error = ();
+
+            fn try_from(value: &str) -> Result<Self, Self::Error> {
+                Ok(match value {
+                    $(
+                        $token => Self::$name,
+                    )*
+                    _ => return Err(()),
+                })
+            }
+        }
+    };
 }
 
-impl TryFrom<&str> for Keyword {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(match value {
-            "func" => Self::Func,
-            "let" => Self::Let,
-            "end" => Self::End,
-            _ => return Err(()),
-        })
-    }
+make_keyword! {
+    "module" => Module,
+    "template" => Template,
+    "func" => Func,
+    "let" => Let,
+    "end" => End,
+    "if" => If,
+    "elif" => Elif,
+    "else" => Else,
+    "then" => Then,
+    "while" => While,
+    "for" => For,
+    "match" => Match,
+    "case" => Case,
+    "in" => In,
+    "to" => To,
+    "do" => Do,
+    "return" => Return,
+    "break" => Break,
+    "continue" => Continue,
+    "as" => As,
+    "self" => Self_,
+    "and" => And,
+    "or" => Or,
+    "not" => Not,
+    "(" => ParenLeft,
+    ")" => ParenRight,
+    "{" => BraceLeft,
+    "}" => BraceRight,
+    "[" => BracketLeft,
+    "]" => BracketRight,
+    "=" => Assign,
+    "," => Comma,
+    "." => Dot,
+    "==" => Equal,
+    "/=" => NotEqual,
+    ">" => GreaterThan,
+    "<" => LessThan,
+    ">=" => GreaterThanOrEqual,
+    "<=" => LessThanOrEqual,
+    "+" => Plus,
+    "-" => Dash,
+    "*" => Asterisk,
+    "/" => Slash,
+    "%" => Percent,
+    "&" => Ampersand,
+    ".." => Spread,
+    "_" => Underscore,
 }
 
-#[derive(Debug)]
-enum Delim {
-    Paren,
-    Brace,
-    Bracket,
-}
-
-fn parse_tokens(file: &str) -> Result<Vec<TokenPartial>, String> {
+fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
     let mut tokens = Vec::new();
 
     let mut chars = Backtrackable::<4, _>::from(file.chars());
@@ -78,8 +120,8 @@ fn parse_tokens(file: &str) -> Result<Vec<TokenPartial>, String> {
                     break;
                 }
             }
-        } else if let Some((delim, is_left)) = parse_delim(ch) {
-            tokens.push(TokenPartial::Delim { delim, is_left });
+        } else if let Some(keyword) = parse_delim(ch) {
+            tokens.push(Token::Keyword(keyword));
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
             while let Some(ch) = chars.next() {
@@ -111,19 +153,22 @@ fn parse_tokens(file: &str) -> Result<Vec<TokenPartial>, String> {
                 }
                 number.push(ch);
             }
-            let number: f32 = number.parse().expect("Number should be valid");
-            tokens.push(TokenPartial::Token(Token::Literal(Literal::Number(number))));
-        } else if ch == '"' {
+            let number: f64 = number.parse().expect("Number should be valid");
+            tokens.push(Token::Literal(Literal::Number(number)));
+        } else if ch == '"' || ch == '\'' {
+            let quote = ch;
+            let is_char = quote == '\'';
             let mut string = String::new();
             while let Some(ch) = chars.next() {
                 if ch == '"' {
                     break;
                 }
                 string.push(ch);
+                if is_char {
+                    break;
+                }
             }
-            tokens.push(TokenPartial::Token(Token::Literal(Literal::String(string))));
-        } else if ch == '\'' {
-            unimplemented!("character literals")
+            tokens.push(Token::Literal(Literal::String(string)));
         } else if ch.is_whitespace() {
             continue;
         } else {
@@ -136,31 +181,20 @@ fn parse_tokens(file: &str) -> Result<Vec<TokenPartial>, String> {
                 ident.push(ch);
             }
             chars.back();
-            let token = if ident_is_punct {
-                Token::Punct(ident)
-            } else {
-                match Keyword::try_from(ident.as_str()) {
-                    Ok(keyword) => Token::Keyword(keyword),
-                    Err(_) => Token::Ident(ident),
-                }
+            let token = match Keyword::try_from(ident.as_str()) {
+                Ok(keyword) => Token::Keyword(keyword),
+                Err(_) => match ident.as_str() {
+                    "true" => Token::Literal(Literal::Bool(true)),
+                    "false" => Token::Literal(Literal::Bool(false)),
+                    "nil" => Token::Literal(Literal::Nil),
+                    _ => Token::Ident(ident),
+                },
             };
-            tokens.push(TokenPartial::Token(token));
+            tokens.push(token);
         }
     }
 
     Ok(tokens)
-}
-
-fn parse_delim(ch: char) -> Option<(Delim, bool)> {
-    match ch {
-        '(' => Some((Delim::Paren, true)),
-        ')' => Some((Delim::Paren, false)),
-        '{' => Some((Delim::Brace, true)),
-        '}' => Some((Delim::Brace, false)),
-        '[' => Some((Delim::Bracket, true)),
-        ']' => Some((Delim::Bracket, false)),
-        _ => None,
-    }
 }
 
 fn is_valid_char(ch: char) -> bool {
@@ -171,12 +205,20 @@ fn is_valid_char(ch: char) -> bool {
 }
 
 fn is_punct(ch: char) -> bool {
-    !ch.is_alphanumeric() && ch != '_'
+    match ch {
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '@' => false,
+        _ => true,
+    }
 }
 
-fn is_delim(ch: char) -> bool {
-    match ch {
-        '(' | ')' | '{' | '}' | '[' | ']' => true,
-        _ => false,
-    }
+fn parse_delim(ch: char) -> Option<Keyword> {
+    Some(match ch {
+        '(' => Keyword::ParenLeft,
+        ')' => Keyword::ParenLeft,
+        '{' => Keyword::BraceLeft,
+        '}' => Keyword::BraceRight,
+        '[' => Keyword::BracketLeft,
+        ']' => Keyword::BracketRight,
+        _ => return None,
+    })
 }
