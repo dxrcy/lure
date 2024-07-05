@@ -12,18 +12,20 @@ fn main() {
     for token in &tokens {
         // if let Token::Ident(token) = token {
         // }
-        println!("{:?}", token);
+        // println!("{:?}", token);
     }
 
     let source = parse_source_module(tokens).expect("Failed to parse source module");
 
-    println!("{:?}", source);
+    println!("{:#?}", source);
 }
 
-fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, String> {
-    let mut tokens = tokens.into_iter();
+type ParseError = String;
 
-    let module = parse_module_statements(&mut tokens)?;
+fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, ParseError> {
+    let mut tokens = TokenIter::new(tokens);
+
+    let module = parse_statement_list(&mut tokens)?;
 
     Ok(SourceModule {
         module,
@@ -31,19 +33,94 @@ fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, String> {
     })
 }
 
-fn parse_module_statements(
-    tokens: &mut impl Iterator<Item = Token>,
-) -> Result<StatementList, String> {
-    todo!();
+struct TokenIter {
+    tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
 }
 
-#[derive(Debug)]
+impl TokenIter {
+    fn new(tokens: Vec<Token>) -> Self {
+        Self {
+            tokens: tokens.into_iter().peekable(),
+        }
+    }
+    fn next(&mut self) -> Token {
+        self.tokens.next().unwrap_or(Token::Eof)
+    }
+    fn peek(&mut self) -> &Token {
+        self.tokens.peek().unwrap_or(&Token::Eof)
+    }
+}
+
+fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseError> {
+    let mut statements = Vec::new();
+
+    loop {
+        if tokens.peek() == &Token::Keyword(Keyword::End) {
+            println!("(end)");
+            break;
+        }
+
+        let token = tokens.next();
+
+        match token {
+            Token::Eof => {
+                println!("(EOF) this is probably bad");
+                break;
+            }
+            Token::Keyword(Keyword::Func) => {
+                let name = match tokens.next() {
+                    Token::Ident(name) => name,
+                    _ => return Err("Expected function name".to_string()),
+                };
+                if !matches!(tokens.next(), Token::Keyword(Keyword::ParenLeft)) {
+                    return Err("Expected `(`".to_string());
+                }
+                let mut params = Params::new();
+                loop {
+                    let token = tokens.next();
+                    match token {
+                        Token::Keyword(Keyword::ParenRight) => break,
+                        Token::Ident(name) => {
+                            params.params.push(name);
+                            match tokens.next() {
+                                Token::Keyword(Keyword::Comma) => (),
+                                Token::Keyword(Keyword::ParenRight) => break,
+                                _ => return Err("Expected `,` or `)`".to_string()),
+                            }
+                        }
+                        Token::Keyword(Keyword::Spread) => {
+                            let name = match tokens.next() {
+                                Token::Ident(name) => name,
+                                _ => return Err("Expected parameter name".to_string()),
+                            };
+                            params.rest = Some(name);
+                            match tokens.next() {
+                                Token::Keyword(Keyword::ParenRight) => break,
+                                _ => return Err("Expected `)`".to_string()),
+                            }
+                        }
+                        _ => return Err("Expected parameter name or `)`".to_string()),
+                    }
+                }
+
+                let body = parse_statement_list(tokens)?;
+
+                statements.push(Statement::Func(Func { name, params, body }));
+            }
+            _ => (),
+        }
+    }
+
+    Ok(statements)
+}
+
+#[derive(Debug, PartialEq)]
 struct SourceModule {
     module: StatementList,
     linked: Vec<Module>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Module {
     name: ModuleName,
     statements: StatementList,
@@ -53,7 +130,7 @@ type ModuleName = String;
 
 type StatementList = Vec<Statement>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Statement {
     Expr(Expr),
     Func(Func),
@@ -67,40 +144,41 @@ enum Statement {
     //TODO: Template
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Func {
     name: Ident,
     params: Params,
+    body: StatementList,
 }
 
 type Ident = String;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct IdentPath {
     parents: Vec<Ident>,
     name: Ident,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Params {
     params: Vec<Ident>,
     rest: Option<Ident>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Let {
     //TODO: Support destructuring
     name: Ident,
     value: Expr,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Assign {
     name: Ident,
     value: Expr,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Expr {
     Literal(Literal),
     UnaryOp(UnaryOp, Box<Expr>),
@@ -112,13 +190,13 @@ enum Expr {
     Table(Table),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum UnaryOp {
     Not,
     Negative,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum BinaryOp {
     Add,
     Multiply,
@@ -136,26 +214,26 @@ enum BinaryOp {
     GreaterThanEqual,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct If {
     if_: Box<ConditionalBranch>,
     elifs: Vec<ConditionalBranch>,
     else_: Option<StatementList>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct ConditionalBranch {
     condition: Expr,
     body: StatementList,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Match {
     pattern: Box<Expr>,
     branches: Vec<MatchBranch>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct MatchBranch {
     //TODO: Restrict expressions and support destructuring
     pattern: Expr,
@@ -163,43 +241,55 @@ struct MatchBranch {
     body: StatementList,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct For {
     idents: Vec<Ident>,
     source: ForSource,
     body: StatementList,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum ForSource {
     Range(Expr, Expr),
     Iterable(Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct While {
     branch: ConditionalBranch,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Table {
     items: Vec<TableItem>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum TableItem {
     Positional(usize, Box<Expr>),
     Named(Ident, Box<Expr>),
 }
 
-#[derive(Debug)]
+impl Params {
+    pub fn new() -> Self {
+        Self {
+            params: Vec::new(),
+            rest: None,
+        }
+    }
+}
+
+type LexError = String;
+
+#[derive(Debug, PartialEq)]
 enum Token {
     Keyword(Keyword),
     Ident(String),
     Literal(Literal),
+    Eof,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Literal {
     String(String),
     Number(f64),
@@ -209,7 +299,7 @@ enum Literal {
 
 macro_rules! make_keyword {
     ( $( $token:literal => $name:ident ),* $(,)? ) => {
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq)]
         enum Keyword {
             $(
                 $name,
@@ -281,12 +371,12 @@ make_keyword! {
     "_" => Underscore,
 }
 
-fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
+fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = Vec::new();
 
     let mut chars = Backtrackable::<4, _>::from(file.chars());
 
-    while let Some(mut ch) = chars.next() {
+    while let Some(ch) = chars.next() {
         if !is_valid_char(ch) {
             return Err(format!("Invalid character: 0x{:02x}", ch as u8));
         }
@@ -301,7 +391,7 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, String> {
             }
             continue;
         }
-        if let Some(keyword) = parse_delim(ch) {
+        if let Some(keyword) = parse_lone_punct(ch) {
             tokens.push(Token::Keyword(keyword));
         } else if ch == '"' || ch == '\'' {
             let quote = ch;
@@ -390,7 +480,7 @@ fn is_punct(ch: char) -> bool {
     }
 }
 
-fn parse_delim(ch: char) -> Option<Keyword> {
+fn parse_lone_punct(ch: char) -> Option<Keyword> {
     Some(match ch {
         '(' => Keyword::ParenLeft,
         ')' => Keyword::ParenRight,
@@ -398,6 +488,7 @@ fn parse_delim(ch: char) -> Option<Keyword> {
         '}' => Keyword::BraceRight,
         '[' => Keyword::BracketLeft,
         ']' => Keyword::BracketRight,
+        ',' => Keyword::Comma,
         _ => return None,
     })
 }

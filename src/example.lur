@@ -1,5 +1,5 @@
 # ok
-func main()
+func main(awiod,  )
     print("Hello. World")
     let abc =  - 2.3
     let def = {
