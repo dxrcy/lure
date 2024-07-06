@@ -1,5 +1,2 @@
-#![feature(generic_const_exprs)]
-
-mod backtrackable;
-
-pub use backtrackable::backtrackable;
+mod peek_more;
+pub use peek_more::PeekMore;

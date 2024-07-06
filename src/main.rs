@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{fmt::Display, fs};
 
-use lure::Backtrackable;
+use lure::PeekMore;
 
 fn main() {
     let filename = "src/example.lur";
@@ -199,7 +199,6 @@ fn parse_expr(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
         // Token::Keyword(Keyword::BraceLeft) => {
         //
         // }
-
         Token::Keyword(Keyword::If) => unimplemented!("`if` expression"),
         Token::Keyword(Keyword::Match) => unimplemented!("`match` expression"),
 
@@ -528,9 +527,9 @@ impl Display for Literal {
 fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = Vec::new();
 
-    let mut chars = Backtrackable::from(file.chars());
+    let mut chars = PeekMore::from(file.chars());
 
-    while let Some(ch) = chars.next() {
+    while let Some(&ch) = chars.peek() {
         if !is_valid_char(ch) {
             return Err(format!("Invalid character: 0x{:02x}", ch as u8));
         }
@@ -563,33 +562,31 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
             tokens.push(Token::Literal(Literal::String(string)));
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
-            while let Some(ch) = chars.next() {
+            while let Some(&ch) = chars.peek() {
                 if !ch.is_digit(10) {
-                    chars.back();
                     break;
                 }
+                chars.next();
                 number.push(ch);
             }
-            if let Some(ch) = chars.next() {
+            if let Some(&ch) = chars.peek() {
                 if ch == '.' {
-                    if let Some(ch) = chars.next() {
+                    chars.next();
+                    if let Some(&ch) = chars.peek() {
                         if ch.is_digit(10) {
+                            chars.next();
+                            chars.next();
                             number.push('.');
                             number.push(ch);
-                        } else {
-                            chars.back();
-                            chars.back();
                         }
                     }
-                } else {
-                    chars.back();
                 }
             }
-            while let Some(ch) = chars.next() {
+            while let Some(&ch) = chars.peek() {
                 if !ch.is_digit(10) {
-                    chars.back();
                     break;
                 }
+                chars.next();
                 number.push(ch);
             }
             let number: f64 = number.parse().expect("Number should be valid");
@@ -597,13 +594,13 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
         } else {
             let ident_is_punct = is_punct(ch);
             let mut ident = String::from(ch);
-            while let Some(ch) = chars.next() {
+            while let Some(&ch) = chars.peek() {
                 if ch.is_whitespace() || ident_is_punct != is_punct(ch) {
                     break;
                 }
                 ident.push(ch);
+                chars.next();
             }
-            chars.back();
             let token = match Keyword::try_from(ident.as_str()) {
                 Ok(keyword) => Token::Keyword(keyword),
                 Err(_) => match ident.as_str() {
@@ -646,3 +643,7 @@ fn parse_lone_punct(ch: char) -> Option<Keyword> {
         _ => return None,
     })
 }
+
+// #[cfg(test)]
+// pub mod tests {
+    
