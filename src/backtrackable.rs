@@ -1,15 +1,19 @@
+use std::mem;
+
+const BUFFER_SIZE: usize = 4;
+
 /// Keep a buffer of previously iterated items
-pub struct Backtrackable<const N: usize, T>
+pub struct Backtrackable<T>
 where
     T: Iterator,
     <T as Iterator>::Item: Copy + Default,
 {
     source: T,
-    buffer: CyclicBuffer<N, <T as Iterator>::Item>,
+    buffer: CyclicBuffer<<T as Iterator>::Item>,
     back_count: usize,
 }
 
-impl<const N: usize, T> From<T> for Backtrackable<N, T>
+impl<T> From<T> for Backtrackable<T>
 where
     T: Iterator,
     <T as Iterator>::Item: Copy + Default,
@@ -23,7 +27,7 @@ where
     }
 }
 
-impl<const N: usize, T> Backtrackable<N, T>
+impl<T> Backtrackable<T>
 where
     T: Iterator,
     <T as Iterator>::Item: Copy + Default,
@@ -33,7 +37,7 @@ where
     /// The next call to `.next` will yield the same value as previously returned
     pub fn back(&mut self) {
         self.back_count += 1;
-        if self.back_count > N {
+        if self.back_count > BUFFER_SIZE {
             panic!("Too many back steps");
         }
     }
@@ -45,7 +49,7 @@ where
     }
 }
 
-impl<const N: usize, T> Iterator for Backtrackable<N, T>
+impl<T> Iterator for Backtrackable<T>
 where
     T: Iterator,
     <T as Iterator>::Item: Copy + Default,
@@ -67,38 +71,33 @@ where
 }
 
 /// A buffer with a maximum length which wraps around, overriding previous values
-struct CyclicBuffer<const N: usize, T>
-where
-    T: Copy + Default,
-{
-    buffer: [T; N],
+struct CyclicBuffer<T> {
+    buffer: [T; BUFFER_SIZE],
     count: usize,
 }
 
-impl<const N: usize, T> CyclicBuffer<N, T>
+impl<T> CyclicBuffer<T>
 where
     T: Copy + Default,
 {
     /// Create a new cyclic buffer
     fn new() -> Self {
-        Self {
-            buffer: [Default::default(); N],
-            count: 0,
-        }
+        let buffer = [Default::default(); BUFFER_SIZE];
+        Self { buffer, count: 0 }
     }
 
     /// Push a new item to the 'end' of the buffer
     fn push(&mut self, value: T) {
-        self.buffer[self.count % N] = value;
+        self.buffer[self.count % BUFFER_SIZE] = value;
         self.count += 1;
     }
 
     /// Get the nth item from the 'end' of the buffer
     fn get_back(&mut self, index: usize) -> Option<T> {
-        if index >= N || index >= self.count || self.count == 0 {
+        if index >= BUFFER_SIZE || index >= self.count || self.count == 0 {
             return None;
         }
-        let actual_index = (self.count - index - 1) % N;
+        let actual_index = (self.count - index - 1) % BUFFER_SIZE;
         Some(self.buffer[actual_index])
     }
 }
@@ -110,7 +109,7 @@ mod tests {
     #[test]
     fn backtrack_works() {
         let string = "abcde";
-        let mut chars = Backtrackable::<4, _>::from(string.chars());
+        let mut chars = Backtrackable::from(string.chars());
         assert_eq!(chars.next(), Some('a'), "1");
         assert_eq!(chars.next(), Some('b'), "2");
         assert_eq!(chars.next(), Some('c'), "3");
@@ -146,7 +145,7 @@ mod tests {
     #[test]
     fn backtrack_peek_works() {
         let string = "abcde";
-        let mut chars = Backtrackable::<3, _>::from(string.chars());
+        let mut chars = Backtrackable::from(string.chars());
         assert_eq!(chars.next(), Some('a'), "1");
         assert_eq!(chars.peek(), Some('b'), "2");
         assert_eq!(chars.next(), Some('b'), "3");
@@ -164,10 +163,11 @@ mod tests {
     #[should_panic]
     fn backtrack_panics() {
         let string = "abcde";
-        let mut chars = Backtrackable::<3, _>::from(string.chars());
+        let mut chars = Backtrackable::from(string.chars());
         assert_eq!(chars.next(), Some('a'), "1");
         assert_eq!(chars.next(), Some('b'), "2");
         assert_eq!(chars.next(), Some('c'), "3");
+        chars.back();
         chars.back();
         chars.back();
         chars.back();
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn cyclic_buffer_works() {
-        let mut buffer = CyclicBuffer::<4, char>::new();
+        let mut buffer = CyclicBuffer::<char>::new();
         assert_eq!(buffer.buffer, ['\0', '\0', '\0', '\0']);
         assert_eq!(buffer.count, 0);
         assert_eq!(buffer.get_back(0), None);
