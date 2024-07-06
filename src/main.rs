@@ -8,7 +8,7 @@ fn main() {
 
     let file = fs::read_to_string(filename).expect("Failed to read file");
 
-    let tokens = parse_tokens(&file).expect("Failed to parse tokens");
+    let tokens = lex_tokens(&file).expect("Failed to lex tokens");
 
     for token in &tokens {
         // if let Token::Ident(token) = token {
@@ -524,12 +524,12 @@ impl Display for Literal {
     }
 }
 
-fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
+fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = Vec::new();
 
     let mut chars = PeekMore::from(file.chars());
 
-    while let Some(&ch) = chars.peek() {
+    while let Some(ch) = chars.next() {
         if !is_valid_char(ch) {
             return Err(format!("Invalid character: 0x{:02x}", ch as u8));
         }
@@ -562,30 +562,24 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
             tokens.push(Token::Literal(Literal::String(string)));
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
-            while let Some(&ch) = chars.peek() {
-                if !ch.is_digit(10) {
-                    break;
-                }
+            while let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                 chars.next();
                 number.push(ch);
             }
-            if let Some(&ch) = chars.peek() {
-                if ch == '.' {
+            chars.back();
+            if chars.peek().is_some_and(|ch| *ch == '.') {
+                if let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                     chars.next();
-                    if let Some(&ch) = chars.peek() {
-                        if ch.is_digit(10) {
-                            chars.next();
-                            chars.next();
-                            number.push('.');
-                            number.push(ch);
-                        }
-                    }
+                    chars.next();
+                    number.push('.');
+                    number.push(ch);
+                } else {
+                    chars.back();
                 }
+            } else {
+                chars.back();
             }
-            while let Some(&ch) = chars.peek() {
-                if !ch.is_digit(10) {
-                    break;
-                }
+            while let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                 chars.next();
                 number.push(ch);
             }
@@ -601,12 +595,16 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
                 ident.push(ch);
                 chars.next();
             }
+            chars.back();
             let token = match Keyword::try_from(ident.as_str()) {
                 Ok(keyword) => Token::Keyword(keyword),
                 Err(_) => match ident.as_str() {
                     "true" => Token::Literal(Literal::Bool(true)),
                     "false" => Token::Literal(Literal::Bool(false)),
                     "nil" => Token::Literal(Literal::Nil),
+                    _ if ident_is_punct => {
+                        return Err(format!("Unexpected punctuation: `{}`", ident))
+                    }
                     _ => Token::Ident(ident),
                 },
             };
@@ -619,6 +617,7 @@ fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
 
 fn is_valid_char(ch: char) -> bool {
     match ch as u8 {
+        // Non-control ascii characters + whitespace
         0x09 | 0x0a | 0x0d | 0x20..=0x7e => true,
         _ => false,
     }
@@ -644,6 +643,111 @@ fn parse_lone_punct(ch: char) -> Option<Keyword> {
     })
 }
 
-// #[cfg(test)]
-// pub mod tests {
-    
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn lex_works() {
+        let file = r#"
+            # comment
+            func main()
+                print("abc") # oiajd
+                let x = 2.3
+            end
+        "#;
+        let tokens = lex_tokens(file).expect("Failed to lex");
+        for token in &tokens {
+            println!("{:?}", token);
+        }
+        let mut tokens = tokens.into_iter();
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Func)));
+        assert_eq!(tokens.next(), Some(Token::Ident("main".to_string())));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenLeft)));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenRight)));
+        assert_eq!(tokens.next(), Some(Token::Ident("print".to_string())));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenLeft)));
+        assert_eq!(
+            tokens.next(),
+            Some(Token::Literal(Literal::String("abc".to_string())))
+        );
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenRight)));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Let)));
+        assert_eq!(tokens.next(), Some(Token::Ident("x".to_string())));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::SingleEqual)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.3))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::End)));
+        assert_eq!(tokens.next(), None);
+    }
+
+    #[test]
+    fn lex_numbers_works() {
+        let file = r#"
+            2           +
+            2.3         +
+            12 . 34     +
+            12.34       +
+            12 .. 34    +
+            12..34      +
+            12. .34     +
+            1.2.3       +
+            12.34.56    +
+            12.34..56   +
+            12..34.56
+        "#;
+        let tokens = lex_tokens(file).expect("Failed to lex");
+        for token in &tokens {
+            println!("{:?}", token);
+        }
+        let mut tokens = tokens.into_iter();
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.3))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(1.2))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(3.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(56.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(56.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
+        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
+        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.56))));
+
+        assert_eq!(tokens.next(), None);
+    }
+}
