@@ -1,4 +1,5 @@
-use std::fs;
+use core::fmt;
+use std::{fmt::Display, fs};
 
 use lure::Backtrackable;
 
@@ -51,6 +52,10 @@ impl TokenIter {
     }
 }
 
+fn unexpected(found: impl Display, expected: impl Display) -> String {
+    format!("Unexpected {}. Expected {}", found, expected)
+}
+
 fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseError> {
     let mut statements = Vec::new();
 
@@ -60,46 +65,64 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
             break;
         }
 
-        let token = tokens.next();
+        let token = tokens.peek();
 
         match token {
             Token::Eof => {
                 println!("(EOF) this is probably bad");
                 break;
             }
-            Token::Keyword(Keyword::Func) => {
+
+            Token::Keyword(Keyword::Let) => {
+                tokens.next();
+                //TODO: Support destructuring
                 let name = match tokens.next() {
                     Token::Ident(name) => name,
-                    _ => return Err("Expected function name".to_string()),
+                    token => return Err(unexpected(token, "variable name")),
                 };
-                if !matches!(tokens.next(), Token::Keyword(Keyword::ParenLeft)) {
-                    return Err("Expected `(`".to_string());
+                match tokens.next() {
+                    Token::Keyword(Keyword::SingleEqual) => (),
+                    token => return Err(unexpected(token, "`=`")),
                 }
-                let mut params = Params::new();
+                let value = parse_expr(tokens)?;
+                statements.push(Statement::Let(Let { name, value }));
+            }
+
+            Token::Keyword(Keyword::Func) => {
+                tokens.next();
+                let name = match tokens.next() {
+                    Token::Ident(name) => name,
+                    token => return Err(unexpected(token, "function name")),
+                };
+                match tokens.next() {
+                    Token::Keyword(Keyword::ParenLeft) => (),
+                    token => return Err(unexpected(token, "`(`")),
+                }
+                let mut params = DeclareParams::default();
                 loop {
                     let token = tokens.next();
                     match token {
                         Token::Keyword(Keyword::ParenRight) => break,
+                        Token::Keyword(Keyword::Spread) => {
+                            let name = match tokens.next() {
+                                Token::Ident(name) => name,
+                                token => return Err(unexpected(token, "parameter name")),
+                            };
+                            params.rest = Some(name);
+                            match tokens.next() {
+                                Token::Keyword(Keyword::ParenRight) => break,
+                                token => return Err(unexpected(token, "`)`")),
+                            }
+                        }
                         Token::Ident(name) => {
                             params.params.push(name);
                             match tokens.next() {
                                 Token::Keyword(Keyword::Comma) => (),
                                 Token::Keyword(Keyword::ParenRight) => break,
-                                _ => return Err("Expected `,` or `)`".to_string()),
+                                token => return Err(unexpected(token, "`,` or `)`")),
                             }
                         }
-                        Token::Keyword(Keyword::Spread) => {
-                            let name = match tokens.next() {
-                                Token::Ident(name) => name,
-                                _ => return Err("Expected parameter name".to_string()),
-                            };
-                            params.rest = Some(name);
-                            match tokens.next() {
-                                Token::Keyword(Keyword::ParenRight) => break,
-                                _ => return Err("Expected `)`".to_string()),
-                            }
-                        }
-                        _ => return Err("Expected parameter name or `)`".to_string()),
+                        token => return Err(unexpected(token, "parameter name or `)`")),
                     }
                 }
 
@@ -107,11 +130,112 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
 
                 statements.push(Statement::Func(Func { name, params, body }));
             }
-            _ => (),
+
+            _ => {
+                println!("assuming start of expr :: {}", token);
+                let expr = parse_expr(tokens)?;
+                statements.push(Statement::Expr(expr))
+            }
         }
     }
 
     Ok(statements)
+}
+
+//TODO: Re-order binary operations according to order of operations
+fn parse_expr(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
+    match tokens.next() {
+        Token::Literal(literal) => {
+            return Ok(Expr::Literal(literal));
+        }
+        Token::Ident(ident) => {
+            let ident_path = parse_ident_path(tokens, ident)?;
+            match tokens.peek() {
+                Token::Keyword(Keyword::ParenLeft) => {
+                    tokens.next();
+                    let mut params = CallParams::default();
+                    loop {
+                        match tokens.peek() {
+                            Token::Keyword(Keyword::ParenRight) => {
+                                tokens.next();
+                                break;
+                            }
+                            Token::Keyword(Keyword::Spread) => {
+                                tokens.next();
+                                let expr = parse_expr(tokens)?;
+                                params.rest = Some(Box::new(expr));
+                                break;
+                            }
+                            _ => {
+                                let expr = parse_expr(tokens)?;
+                                params.params.push(expr);
+                                match tokens.next() {
+                                    Token::Keyword(Keyword::Comma) => (),
+                                    Token::Keyword(Keyword::ParenRight) => break,
+                                    token => return Err(unexpected(token, "`,` or `)`")),
+                                }
+                            }
+                        }
+                    }
+                    println!("{:?} {:?}", ident_path, params);
+                    return Ok(Expr::Call(ident_path, params));
+                }
+                Token::Keyword(Keyword::ParenRight) => (),
+                token => unimplemented!("token following ident: {}", token),
+            }
+            return Ok(Expr::IdentPath(ident_path));
+        }
+
+        Token::Keyword(Keyword::Dash) => {
+            let expr = parse_expr(tokens)?;
+            return Ok(Expr::UnaryOp(UnaryOp::Negative, Box::new(expr)));
+        }
+
+        Token::Keyword(Keyword::Not) => {
+            let expr = parse_expr(tokens)?;
+            return Ok(Expr::UnaryOp(UnaryOp::Not, Box::new(expr)));
+        }
+
+        // Token::Keyword(Keyword::BraceLeft) => {
+        //
+        // }
+
+        Token::Keyword(Keyword::If) => unimplemented!("`if` expression"),
+        Token::Keyword(Keyword::Match) => unimplemented!("`match` expression"),
+
+        token => return Err(unexpected(token, "expression")),
+    }
+}
+
+fn parse_ident_path(tokens: &mut TokenIter, ident: Ident) -> Result<IdentPath, ParseError> {
+    let mut path = vec![ident];
+    loop {
+        let peek = tokens.peek();
+        match peek {
+            Token::Keyword(Keyword::Dot) => {
+                tokens.next();
+                let name = match tokens.next() {
+                    Token::Ident(name) => name,
+                    token => return Err(unexpected(token, "identifier name")),
+                };
+                path.push(name);
+            }
+            _ => break,
+        }
+    }
+    let path = if path.len() > 1 {
+        let name = path.pop().unwrap();
+        IdentPath {
+            parents: path,
+            name,
+        }
+    } else {
+        IdentPath {
+            parents: Vec::new(),
+            name: path.pop().unwrap(),
+        }
+    };
+    Ok(path)
 }
 
 #[derive(Debug, PartialEq)]
@@ -147,7 +271,7 @@ enum Statement {
 #[derive(Debug, PartialEq)]
 struct Func {
     name: Ident,
-    params: Params,
+    params: DeclareParams,
     body: StatementList,
 }
 
@@ -159,10 +283,16 @@ struct IdentPath {
     name: Ident,
 }
 
-#[derive(Debug, PartialEq)]
-struct Params {
+#[derive(Debug, Default, PartialEq)]
+struct DeclareParams {
     params: Vec<Ident>,
     rest: Option<Ident>,
+}
+
+#[derive(Debug, Default, PartialEq)]
+struct CallParams {
+    params: Vec<Expr>,
+    rest: Option<Box<Expr>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -181,13 +311,14 @@ struct Assign {
 #[derive(Debug, PartialEq)]
 enum Expr {
     Literal(Literal),
+    IdentPath(IdentPath),
+    Call(IdentPath, CallParams),
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
-    IdentPath(IdentPath),
-    Call(IdentPath, Params),
     If(If),
     Match(Match),
     Table(Table),
+    Group(Box<Expr>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -270,15 +401,6 @@ enum TableItem {
     Named(Ident, Box<Expr>),
 }
 
-impl Params {
-    pub fn new() -> Self {
-        Self {
-            params: Vec::new(),
-            rest: None,
-        }
-    }
-}
-
 type LexError = String;
 
 #[derive(Debug, PartialEq)]
@@ -316,6 +438,16 @@ macro_rules! make_keyword {
                     )*
                     _ => return Err(()),
                 })
+            }
+        }
+
+        impl Display for Keyword {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(
+                        Self::$name => write!(f, "{}", $token),
+                    )*
+                }
             }
         }
     };
@@ -371,10 +503,32 @@ make_keyword! {
     "_" => Underscore,
 }
 
+impl Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Eof => write!(f, "<EOF>"),
+            Self::Ident(ident) => write!(f, "ident `{}`", ident),
+            Self::Keyword(keyword) => write!(f, "`{}`", keyword),
+            Self::Literal(literal) => write!(f, "literal {}", literal),
+        }
+    }
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Nil => write!(f, "nil"),
+            Self::Bool(boolean) => write!(f, "{}", boolean),
+            Self::Number(number) => write!(f, "{}", number),
+            Self::String(string) => write!(f, "{:?}", string),
+        }
+    }
+}
+
 fn parse_tokens(file: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = Vec::new();
 
-    let mut chars = Backtrackable::<4, _>::from(file.chars());
+    let mut chars = Backtrackable::from(file.chars());
 
     while let Some(ch) = chars.next() {
         if !is_valid_char(ch) {

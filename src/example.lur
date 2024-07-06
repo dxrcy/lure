@@ -1,6 +1,6 @@
 # ok
 func main(awiod,  )
-    print("Hello. World")
+    print("Hello. World", a)
     let abc =  - 2.3
     let def = {
         adw = 24

@@ -1,3 +1,5 @@
+#![feature(generic_const_exprs)]
+
 mod backtrackable;
 
-pub use backtrackable::Backtrackable;
+pub use backtrackable::backtrackable;

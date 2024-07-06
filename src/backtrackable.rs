@@ -1,4 +1,4 @@
-use std::mem;
+use std::mem::{self, size_of};
 
 const BUFFER_SIZE: usize = 4;
 
@@ -79,10 +79,13 @@ struct CyclicBuffer<T> {
 impl<T> CyclicBuffer<T>
 where
     T: Copy + Default,
+    T: Sized,
+    [(); BUFFER_SIZE * size_of::<T>()]: Sized,
 {
     /// Create a new cyclic buffer
     fn new() -> Self {
-        let buffer = [Default::default(); BUFFER_SIZE];
+        let buffer = [0u8; BUFFER_SIZE * size_of::<T>()];
+        let buffer = unsafe { mem::transmute(buffer) };
         Self { buffer, count: 0 }
     }
 
