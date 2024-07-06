@@ -3,7 +3,7 @@ func main (awiod,  )
     print("Hello. World", a)
     let abc =  - 2.3
     let def = {
-        adw = 23 + 24
+        adw = 23 + 24 * 3 - 123
     }
 end
 

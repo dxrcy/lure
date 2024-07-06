@@ -114,8 +114,8 @@ enum BinaryOp {
     NotEqual,
     LessThan,
     GreaterThan,
-    LessThanEqual,
-    GreaterThanEqual,
+    LessEqual,
+    GreaterEqual,
 }
 
 #[derive(Debug, PartialEq)]
@@ -298,8 +298,44 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
 
 //TODO: Re-order binary operations according to order of operations
 fn parse_expr(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
+    let left = parse_expr_part(tokens)?;
+
+    let op = match tokens.peek() {
+        Token::Keyword(Keyword::Plus) => BinaryOp::Add,
+        Token::Keyword(Keyword::Dash) => BinaryOp::Subtract,
+        Token::Keyword(Keyword::Asterisk) => BinaryOp::Multiply,
+        Token::Keyword(Keyword::Slash) => BinaryOp::Divide,
+        Token::Keyword(Keyword::Percent) => BinaryOp::Modulo,
+        Token::Keyword(Keyword::Ampersand) => BinaryOp::Concat,
+        Token::Keyword(Keyword::And) => BinaryOp::And,
+        Token::Keyword(Keyword::Or) => BinaryOp::Or,
+        Token::Keyword(Keyword::DoubleEqual) => BinaryOp::Equal,
+        Token::Keyword(Keyword::NotEqual) => BinaryOp::NotEqual,
+        Token::Keyword(Keyword::LessThan) => BinaryOp::LessThan,
+        Token::Keyword(Keyword::LessEqual) => BinaryOp::LessEqual,
+        Token::Keyword(Keyword::GreaterThan) => BinaryOp::GreaterThan,
+        Token::Keyword(Keyword::GreaterEqual) => BinaryOp::GreaterEqual,
+
+        _ => {
+            tokens.back();
+            return Ok(left);
+        }
+    };
+
+    tokens.next();
+    let right = parse_expr(tokens)?;
+    Ok(Expr::BinaryOp(op, Box::new(left), Box::new(right)))
+}
+
+fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
     match tokens.next() {
-        //TODO: Check for binary ops after literal/ident (or any expression ig)
+        Token::Keyword(Keyword::ParenLeft) => {
+            let expr = parse_expr(tokens)?;
+            match tokens.next() {
+                Token::Keyword(Keyword::ParenRight) => Ok(expr),
+                token => Err(unexpected(token, "`)`")),
+            }
+        }
         Token::Literal(literal) => {
             return Ok(Expr::Literal(literal));
         }
