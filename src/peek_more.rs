@@ -130,6 +130,7 @@ mod tests {
         assert_eq!(it.peek(), Some(&'c'));
         assert_eq!(it.peek(), Some(&'d'));
         assert_eq!(it.peek(), Some(&'e'));
+        assert_eq!(it.peek(), Some(&'f'));
         assert_eq!(it.next(), Some('c'));
         assert_eq!(it.next(), Some('d'));
     }

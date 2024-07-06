@@ -7,6 +7,12 @@ func add(a, b)
     return a + b
 end
 
+let table = {
+    key = "value",
+    # Maybe this will be supported ??
+    nested.key = "value",
+}
+
 let PI = std.math.PI
 
 let fib_memory = {}

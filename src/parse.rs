@@ -1,11 +1,14 @@
 use std::fmt::Display;
 
-use crate::lex::{Keyword, Literal, Token};
+use crate::{
+    lex::{Keyword, Literal, Token},
+    PeekMore,
+};
 
 pub type ParseError = String;
 
 struct TokenIter {
-    tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
+    tokens: PeekMore<std::vec::IntoIter<Token>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -160,7 +163,7 @@ struct While {
     branch: ConditionalBranch,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 struct Table {
     items: Vec<TableItem>,
 }
@@ -168,13 +171,13 @@ struct Table {
 #[derive(Debug, PartialEq)]
 enum TableItem {
     Positional(usize, Box<Expr>),
-    Named(Ident, Box<Expr>),
+    Named(Literal, Box<Expr>),
 }
 
 impl TokenIter {
     fn new(tokens: Vec<Token>) -> Self {
         Self {
-            tokens: tokens.into_iter().peekable(),
+            tokens: PeekMore::from(tokens.into_iter()),
         }
     }
     fn next(&mut self) -> Token {
@@ -324,7 +327,6 @@ fn parse_expr(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
                             }
                         }
                     }
-                    println!("{:?} {:?}", ident_path, params);
                     return Ok(Expr::Call(ident_path, params));
                 }
                 Token::Keyword(Keyword::ParenRight) => (),
@@ -343,9 +345,48 @@ fn parse_expr(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
             return Ok(Expr::UnaryOp(UnaryOp::Not, Box::new(expr)));
         }
 
-        // Token::Keyword(Keyword::BraceLeft) => {
-        //
-        // }
+        Token::Keyword(Keyword::BraceLeft) => {
+            //TODO: Support nested keys ? This will be annoying to implement
+
+            let table = Table::default();
+
+            for index in 0.. {
+                // Skip to look for `=`
+                tokens.peek();
+                let _key = tokens.peek();
+                println!("{}", tokens.peek());
+                let equals = tokens.peek();
+                println!("{}", equals);
+                println!("awdAWODIJAWOIDJOWAIJDO ");
+                let key = match equals {
+                    // Named table
+                    Token::Keyword(Keyword::SingleEqual) => {
+                        let key = tokens.next();
+                        // println!("key: {}", key);
+                        tokens.next();
+                        match key {
+                            Token::Literal(literal) => literal,
+                            Token::Ident(ident) => Literal::String(ident),
+                            _ => {
+                                return Err(unexpected(
+                                    key,
+                                    "literal or identifier with `=`, or expression",
+                                ))
+                            }
+                        }
+                    }
+                    // Positional table (any expression)
+                    _ => Literal::Number(index as f64),
+                };
+                // println!("{}", key);
+                let value = parse_expr(tokens)?;
+                // println!("{} {:?}", key, value);
+                break;
+            }
+
+            return Ok(Expr::Table(table));
+        }
+
         Token::Keyword(Keyword::If) => unimplemented!("`if` expression"),
         Token::Keyword(Keyword::Match) => unimplemented!("`match` expression"),
 
@@ -383,4 +424,3 @@ fn parse_ident_path(tokens: &mut TokenIter, ident: Ident) -> Result<IdentPath, P
     };
     Ok(path)
 }
-
