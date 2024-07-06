@@ -5,5 +5,6 @@ func main (awiod,  )
     let def = {
         adw = 23 + 24 * 3 - 123
     }
+    let ghi = abc
+    print(ghi)
 end
-

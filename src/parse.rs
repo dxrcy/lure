@@ -195,10 +195,29 @@ impl TokenIter {
     }
 }
 
+macro_rules! unexpected {
+    ( $found:expr, $expected_1:expr $( , $expected_n:expr )* $(,)? ) => {{
+        format!(
+            "Unexpected {}. Expected {}",
+            $found,
+            String::new()
+                + &($expected_1).to_string()
+                $(
+                    + " or " + &($expected_n).to_string()
+                )*
+        )
+    }};
+}
+
 pub fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, ParseError> {
     let mut tokens = TokenIter::new(tokens);
 
     let module = parse_statement_list(&mut tokens)?;
+
+    match tokens.peek() {
+        Token::Eof => (),
+        token => return Err(unexpected!(token, "statement", "end of file")),
+    }
 
     Ok(SourceModule {
         module,
@@ -206,24 +225,19 @@ pub fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, ParseErro
     })
 }
 
-fn unexpected(found: impl Display, expected: impl Display) -> String {
-    format!("Unexpected {}. Expected {}", found, expected)
-}
-
 fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseError> {
     let mut statements = Vec::new();
 
     loop {
-        let token = tokens.peek();
-
-        if token == &Token::Keyword(Keyword::End) {
-            println!("(end)");
-            break;
-        }
-
-        match token {
+        match tokens.peek() {
             Token::Eof => {
-                println!("(EOF) this is probably bad");
+                println!("\x1b[31m(EOF) this is probably bad\x1b[0m");
+                break;
+            }
+
+            Token::Keyword(Keyword::End) => {
+                println!("(end)");
+                tokens.back();
                 break;
             }
 
@@ -232,11 +246,11 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
                 //TODO: Support destructuring
                 let name = match tokens.next() {
                     Token::Ident(name) => name,
-                    token => return Err(unexpected(token, "variable name")),
+                    token => return Err(unexpected!(token, "variable name")),
                 };
                 match tokens.next() {
                     Token::Keyword(Keyword::SingleEqual) => (),
-                    token => return Err(unexpected(token, "`=`")),
+                    token => return Err(unexpected!(token, Keyword::SingleEqual)),
                 }
                 let value = parse_expr(tokens)?;
                 statements.push(Statement::Let(Let { name, value }));
@@ -246,11 +260,11 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
                 tokens.next();
                 let name = match tokens.next() {
                     Token::Ident(name) => name,
-                    token => return Err(unexpected(token, "function name")),
+                    token => return Err(unexpected!(token, "function name")),
                 };
                 match tokens.next() {
                     Token::Keyword(Keyword::ParenLeft) => (),
-                    token => return Err(unexpected(token, "`(`")),
+                    token => return Err(unexpected!(token, Keyword::ParenLeft)),
                 }
                 let mut params = DeclareParams::default();
                 loop {
@@ -260,12 +274,12 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
                         Token::Keyword(Keyword::Spread) => {
                             let name = match tokens.next() {
                                 Token::Ident(name) => name,
-                                token => return Err(unexpected(token, "parameter name")),
+                                token => return Err(unexpected!(token, "parameter name")),
                             };
                             params.rest = Some(name);
                             match tokens.next() {
                                 Token::Keyword(Keyword::ParenRight) => break,
-                                token => return Err(unexpected(token, "`)`")),
+                                token => return Err(unexpected!(token, Keyword::ParenRight)),
                             }
                         }
                         Token::Ident(name) => {
@@ -273,20 +287,35 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
                             match tokens.next() {
                                 Token::Keyword(Keyword::Comma) => (),
                                 Token::Keyword(Keyword::ParenRight) => break,
-                                token => return Err(unexpected(token, "`,` or `)`")),
+                                token => {
+                                    return Err(unexpected!(
+                                        token,
+                                        Keyword::Comma,
+                                        Keyword::ParenRight
+                                    ))
+                                }
                             }
                         }
-                        token => return Err(unexpected(token, "parameter name or `)`")),
+                        token => {
+                            return Err(unexpected!(token, "parameter name", Keyword::ParenRight))
+                        }
                     }
                 }
 
                 let body = parse_statement_list(tokens)?;
 
+                match tokens.peek() {
+                    Token::Keyword(Keyword::End) => {
+                        tokens.next();
+                    }
+                    token => return Err(unexpected!(token, Keyword::End)),
+                }
+
                 statements.push(Statement::Func(Func { name, params, body }));
             }
 
-            _ => {
-                println!("assuming start of expr :: {}", token);
+            token => {
+                println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
                 let expr = parse_expr(tokens)?;
                 statements.push(Statement::Expr(expr))
             }
@@ -333,7 +362,7 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
             let expr = parse_expr(tokens)?;
             match tokens.next() {
                 Token::Keyword(Keyword::ParenRight) => Ok(expr),
-                token => Err(unexpected(token, "`)`")),
+                token => Err(unexpected!(token, Keyword::ParenRight)),
             }
         }
         Token::Literal(literal) => {
@@ -363,7 +392,13 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
                                 match tokens.next() {
                                     Token::Keyword(Keyword::Comma) => (),
                                     Token::Keyword(Keyword::ParenRight) => break,
-                                    token => return Err(unexpected(token, "`,` or `)`")),
+                                    token => {
+                                        return Err(unexpected!(
+                                            token,
+                                            Keyword::Comma,
+                                            Keyword::ParenRight,
+                                        ))
+                                    }
                                 }
                             }
                         }
@@ -371,7 +406,10 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
                     return Ok(Expr::Call(ident_path, params));
                 }
                 Token::Keyword(Keyword::ParenRight) => (),
-                token => unimplemented!("token following ident: {}", token),
+
+                _ => {
+                    tokens.back();
+                }
             }
             return Ok(Expr::IdentPath(ident_path));
         }
@@ -395,20 +433,19 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
                 // Skip to look for `=`
                 let _key = tokens.peek();
                 let equals = tokens.peek();
-                println!("{}", equals);
                 let key = match equals {
                     // Named table
                     Token::Keyword(Keyword::SingleEqual) => {
                         let key = tokens.next();
-                        // println!("key: {}", key);
                         tokens.next();
                         match key {
                             Token::Literal(literal) => literal,
                             Token::Ident(ident) => Literal::String(ident),
                             _ => {
-                                return Err(unexpected(
+                                return Err(unexpected!(
                                     key,
-                                    "literal or identifier with `=`, or expression",
+                                    "literal or identifier with `=`",
+                                    "expression",
                                 ))
                             }
                         }
@@ -432,7 +469,13 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
                 }
 
                 match tokens.peek() {
-                    Token::Eof => return Err(unexpected(tokens.next(), "table item or `}`")),
+                    Token::Eof => {
+                        return Err(unexpected!(
+                            tokens.next(),
+                            "table item",
+                            Keyword::BraceRight
+                        ))
+                    }
                     Token::Keyword(Keyword::BraceRight) => {
                         tokens.next();
                         break;
@@ -449,7 +492,7 @@ fn parse_expr_part(tokens: &mut TokenIter) -> Result<Expr, ParseError> {
         Token::Keyword(Keyword::If) => unimplemented!("`if` expression"),
         Token::Keyword(Keyword::Match) => unimplemented!("`match` expression"),
 
-        token => return Err(unexpected(token, "expression")),
+        token => return Err(unexpected!(token, "expression")),
     }
 }
 
@@ -462,7 +505,7 @@ fn parse_ident_path(tokens: &mut TokenIter, ident: Ident) -> Result<IdentPath, P
                 tokens.next();
                 let name = match tokens.next() {
                     Token::Ident(name) => name,
-                    token => return Err(unexpected(token, "identifier name")),
+                    token => return Err(unexpected!(token, "identifier name")),
                 };
                 path.push(name);
             }
