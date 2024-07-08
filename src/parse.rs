@@ -70,7 +70,6 @@ struct CallParams {
 
 #[derive(Debug, PartialEq)]
 struct Let {
-    //TODO: Support destructuring
     name: Ident,
     value: Expr,
 }
@@ -139,7 +138,8 @@ struct Match {
 
 #[derive(Debug, PartialEq)]
 struct MatchBranch {
-    //TODO: Restrict expressions and support destructuring
+    //TODO: Restrict expressions
+    // remember: don't bind matched keys to variables !!
     pattern: Expr,
     //TODO: Add if guards
     body: StatementList,
@@ -243,7 +243,6 @@ fn parse_statement_list(tokens: &mut TokenIter) -> Result<StatementList, ParseEr
 
             Token::Keyword(Keyword::Let) => {
                 tokens.next();
-                //TODO: Support destructuring
                 let name = match tokens.next() {
                     Token::Ident(name) => name,
                     token => return Err(unexpected!(token, "variable name")),

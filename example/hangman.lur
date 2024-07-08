@@ -82,8 +82,9 @@ end
 
 #: string -> { string } | nil
 func read_file_lines(filename)
-    let { err, file } = File.open(filename, "r")
-    if err /= nil then
+    let result = File.open(filename, "r")
+    let file = result.ok
+    if result.err /= nil then
         return nil
     end
 

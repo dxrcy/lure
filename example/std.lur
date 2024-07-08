@@ -44,17 +44,22 @@ module util
     ## Format arguments to string
     ##
     ## Rust-style formatting
+    ##
+    ## Panics if an error occurs
     #: string, ..any -> string
     func format(fmt, ..args)
-        let result = _format_safe(fmt, ..args)
-        match result
-            case { ok } then return ok
-            else panic(result.err)
+        let result = try_format(fmt, ..args)
+        if result.err != nil
+            panic(result.err)
         end
+        return result.ok
     end
 
+    # Rename to `format_try` or something?
+    # A nice naming scheme will place `xyz` and `try_xyz` close alphabetically
+
     #: string, ..any -> { ok = string } | { err = string }
-    func _format_safe(fmt, ..args)
+    func try_format(fmt, ..args)
         if fmt == nil then
             return ""
         elif len(args) == 0 then
@@ -116,6 +121,9 @@ end
 module sys
     # (inherit type signature and doc comments)
     let exit = core.exit
+
+    # Underscored name is not treated specially by the interpreter, but may
+    # signify a 'private' item to the developer or linter
 
     #: string
     func _panic_unformatted(message)
@@ -190,17 +198,19 @@ module io
 
         #: string, string -> { err = Error } | { ok = File }
         func open(path, mode)
-            let { err, handle } = core.open(path, mode)
-            return io._result_from(err, as File {
+            let result = core.open(path, mode)
+            let err_code = result[0]
+            let handle = result[1]
+            return io._result_from(err_code, as File {
                 path = filename,
-                handle = handle
+                handle = handle,
             })
         end
 
         #: (File) -> { err = Error } | { ok = nil }
         func close(self)
-            let err = core.close(self.handle)
-            return io._result_from(err, nil)
+            let err_code = core.close(self.handle)
+            return io._result_from(err_code, nil)
         end
 
         func read(self, ) todo() end
@@ -208,16 +218,18 @@ module io
         ## Read a line from file
         #: (File) -> { err = Error } | { ok = string }
         func read_line(self)
-            let { err, line } = core.read_line(self.handle)
-            return io._result_from(err, line)
+            let result = core.read_line(self.handle)
+            let err_code = result[0]
+            let line = result[1]
+            return io._result_from(err_code, line)
         end
 
         ## Write formatted arguments to file, without a newline.
         #: (File), string, ..any -> { err = Error } | { ok = nil }
         func write(self, fmt, ..args)
             let text = format(fmt, ..args)
-            let err = core.write(self.handle, text)
-            return io._result_from(err)
+            let err_code = core.write(self.handle, text)
+            return io._result_from(err_code)
         end
 
         # RENAME to match with `read_line` !!!

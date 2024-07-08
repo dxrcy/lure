@@ -13,9 +13,14 @@
 
 # NO statements/functions are hoisted
 
+# idk should functions be able to return multiple values ? 
+# not in a table-destructuring way, but like lua.
+
 # Implicit imports for every file/module
 let std = require("@std") # Or "std"
-let { print, println } = std.prelude
+let print = std.prelude.print
+let println = std.prelude.println
+# and so forth...
 
 # Import a module
 # Executes module when `require` expression is run
@@ -192,25 +197,6 @@ assert(b[0, 1], nil)
 # Spread operator
 let jane = { name = "Jane", ..john }
 
-# Destructuring
-let { name = name } = { name = "John" }
-let { name = name, age = age } = john
-let { name = name, .. } = john
-# Renaming fields
-let { name = johns_name } = john
-println(johns_name)
-# No! Not allowed.
-let { name = name, _ } = john
-# Completely pointless. Use `_` instead. Throws error.
-let { .. } = john
-# Omitting a field
-# Still works, but best to write `..` for readability
-# Actually ideally fields are checked when using a template.
-# ^ Maybe a job for the linter ?
-let { name = name } = john
-# Positional destructuring
-let { a, b } = { 3, 4 }
-
 # Match (switch) statements
 # Case can be any expression which will be compared with `std.compare`
 let x = 3
@@ -249,7 +235,9 @@ end
 match john
     case { name = "John", .. } then
         println("Hello John")
+    # Cannot bind keys to variables!
     else
+        john.name # Access like this! not with pattern matching!
         println("Who are you")
 end
 

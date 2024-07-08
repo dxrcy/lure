@@ -1,6 +1,8 @@
 #! Some library module example
 
-let { assert, is_int } = std.prelude
+# (These are also redudant)
+let assert = std.util.assert
+let is_int = std.util.is_int
 
 #: a int, b int -> int
 func add(a, b)
