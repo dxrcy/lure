@@ -8,7 +8,7 @@ pub struct PeekMore<'a> {
 
 impl<'a> PeekMore<'a> {
     pub fn peek(&mut self) -> Option<char> {
-        let index = if self.peek_index > 0 && self.peeked.is_empty() {
+        let index = if self.peek_index > 0 && !self.peeked.is_empty() {
             if self.peek_index > self.peeked.len() {
                 self.peek_index = self.peeked.len();
             }

@@ -246,7 +246,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
                     "false" => Token::Literal(Literal::Bool(false)),
                     "nil" => Token::Literal(Literal::Nil),
                     _ if ident_is_punct => {
-                        return Err(format!("Unexpected punctuation: `{}`", ident))
+                        return Err(format!("Unexpected punctuation: `{}`", ident));
                     }
                     _ => Token::Ident(ident),
                 },
@@ -273,7 +273,7 @@ fn is_valid_char(ch: char) -> bool {
 }
 
 fn is_punct(ch: char) -> bool {
-    matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '@')
+    !matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '@')
 }
 
 fn parse_lone_punct(ch: char) -> Option<Keyword> {
