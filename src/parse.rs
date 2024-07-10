@@ -213,7 +213,8 @@ struct MatchBranch {
 
 #[derive(Debug, PartialEq)]
 struct For {
-    idents: Vec<Ident>,
+    key_name: Ident,
+    value_name: Option<Ident>,
     source: ForSource,
     body: StatementList,
 }
@@ -376,6 +377,8 @@ impl TokenIter {
                 Token::Keyword(Keyword::Func) => self.expect_func_statement()?,
                 Token::Keyword(Keyword::If) => self.expect_if_statement()?,
                 Token::Keyword(Keyword::Match) => self.expect_match_statement()?,
+                Token::Keyword(Keyword::For) => self.expect_for_statement()?,
+                Token::Keyword(Keyword::While) => self.expect_while_statement()?,
 
                 token => {
                     let token = token.to_owned();
@@ -508,7 +511,7 @@ impl TokenIter {
                         self.line(),
                         token.to_owned(),
                         [Keyword::Elif, Keyword::Else, Keyword::End],
-                        // reason omitted
+                        "`if` statement must end with `end` keyword",
                     ));
                 }
             }
@@ -526,15 +529,12 @@ impl TokenIter {
                     self.line(),
                     token.to_owned(),
                     [Keyword::Else, Keyword::End],
-                    // reason omitted
+                    "`if` statement must end with `end` keyword",
                 ));
             }
         };
 
-        self.expect_keyword(
-            Keyword::End,
-            // reason omitted
-        )?;
+        self.expect_keyword_reason(Keyword::End, "`if` statement must end with `end` keyword")?;
 
         Ok(Statement::If(IfStatement {
             if_branch,
@@ -622,10 +622,7 @@ impl TokenIter {
             }
         };
 
-        self.expect_keyword(
-            Keyword::End,
-            // reason omitted
-        )?;
+        self.expect_keyword_reason(Keyword::End, "`if` expression must end with `end` keyword")?;
 
         Ok(Expr::If(IfExpr {
             if_branch,
@@ -663,7 +660,7 @@ impl TokenIter {
                         self.line(),
                         token.to_owned(),
                         [Keyword::Case, Keyword::Else, Keyword::End],
-                        // reason omitted
+                        "`match` statement must end with `end` keyword",
                     ));
                 }
             }
@@ -681,14 +678,14 @@ impl TokenIter {
                     self.line(),
                     token.to_owned(),
                     [Keyword::Else, Keyword::End],
-                    // reason omitted
+                    "`match` statement must end with `end` keyword",
                 ));
             }
         };
 
-        self.expect_keyword(
+        self.expect_keyword_reason(
             Keyword::End,
-            // reason omitted
+            "`match` statement must end with `end` keyword",
         )?;
 
         Ok(Statement::Match(MatchStatement {
@@ -750,14 +747,95 @@ impl TokenIter {
             }
         };
 
-        self.expect_keyword(
-            Keyword::End, // reason omitted
+        self.expect_keyword_reason(
+            Keyword::End,
+            "`match` expression must end with `end` keyword",
         )?;
 
         Ok(Expr::Match(MatchExpr {
             target,
             case_branches,
             else_branch,
+        }))
+    }
+
+    fn expect_for_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
+        self.expect_keyword(
+            Keyword::For,
+            // reason omitted
+        )?;
+
+        let key_name = self.expect_ident()?;
+
+        let value_name = match self.peek() {
+            Token::Keyword(Keyword::Comma) => {
+                self.next();
+                Some(self.expect_ident()?)
+            }
+            _ => None,
+        };
+
+        self.expect_keyword_reason(Keyword::In, "`for` statement must include `in` keyword")?;
+
+        let from = self.expect_expr()?;
+
+        let source = match self.next() {
+            Token::Keyword(Keyword::To) => {
+                let to = self.expect_expr()?;
+                self.expect_keyword_reason(
+                    Keyword::Do,
+                    "`for` statement must include `do` keyword after iteration range",
+                )?;
+                ForSource::Range(from, to)
+            }
+            Token::Keyword(Keyword::Do) => ForSource::Iterable(from),
+
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    [Keyword::To, Keyword::Do],
+                    "`for` statement must include `to` or `do` keyword after iterable expression"
+                ));
+            }
+        };
+
+        let body = self.expect_statement_list()?;
+
+        self.expect_keyword_reason(Keyword::End, "`for` statement must end with `end` keyword")?;
+
+        Ok(Statement::For(For {
+            key_name,
+            value_name,
+            source,
+            body,
+        }))
+    }
+
+    fn expect_while_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
+        self.expect_keyword(
+            Keyword::While,
+            // reason omitted
+        )?;
+
+        let condition = self.expect_expr()?;
+
+        self.expect_keyword_reason(
+            Keyword::Do,
+            "`while` statement must include `do` keyword following condition expression",
+        )?;
+
+        let body = self.expect_statement_list()?;
+
+        self.expect_keyword_reason(
+            Keyword::End,
+            "`while` statement must end with `end` keyword",
+        )?;
+
+        Ok(Statement::While(While {
+            branch: IfBranch { condition, body },
         }))
     }
 
@@ -973,13 +1051,22 @@ impl TokenIter {
                 return Ok(self.expect_match_expr()?);
             }
 
+            //TODO: Function expression
+            //
             token => {
-                return Err(unexpected!(
-                    self.line(),
-                    token.to_owned(),
-                    ["expression"],
-                    "Cannot parse the tokens as an expression" // Terrible explanation
-                ));
+                let token = token.to_owned();
+                let reason = match token {
+                    Token::Keyword(Keyword::Let) => "Cannot use `let` declaration as an expression",
+                    Token::Keyword(Keyword::For) => "Cannot use `for` statement as an expression",
+                    Token::Keyword(Keyword::While) => {
+                        "Cannot use `while` statement as an expression"
+                    }
+                    Token::Keyword(Keyword::Module) => "Cannot use module as an expression",
+                    Token::Keyword(Keyword::Template) => "Cannot use template as an expression",
+                    // Generic reason
+                    _ => "Cannot parse the tokens as an expression",
+                };
+                return Err(unexpected!(self.line(), token, ["expression"], reason,));
             }
         }
     }

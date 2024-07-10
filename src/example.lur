@@ -1,8 +1,7 @@
 # ok
 func main()
-    let a = match 123
-        case 123 then 123
-        else 123
+    while a < 1 do
+        println(a)
     end
 end
 

@@ -109,7 +109,6 @@ make_keyword! {
     "%" => Percent,
     "&" => Ampersand,
     ".." => Spread,
-    "_" => Underscore,
 }
 
 impl Display for Token {
