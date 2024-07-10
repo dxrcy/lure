@@ -1,20 +1,13 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, str::Chars};
 
-pub struct PeekMore<T>
-where
-    T: Iterator,
-{
-    inner: T,
-    peeked: VecDeque<T::Item>,
+pub struct PeekMore<'a> {
+    inner: Chars<'a>,
+    peeked: VecDeque<char>,
     peek_index: usize,
 }
 
-impl<T> PeekMore<T>
-where
-    T: Iterator,
-    T::Item: std::fmt::Debug,
-{
-    pub fn peek(&mut self) -> Option<&T::Item> {
+impl<'a> PeekMore<'a> {
+    pub fn peek(&mut self) -> Option<char> {
         let index = if self.peek_index > 0 && self.peeked.len() > 0 {
             if self.peek_index > self.peeked.len() {
                 self.peek_index = self.peeked.len();
@@ -34,7 +27,7 @@ where
         if self.peek_index > 0 {
             self.peek_index -= 1;
         }
-        Some(peek)
+        Some(*peek)
     }
 
     pub fn back(&mut self) -> bool {
@@ -46,13 +39,10 @@ where
     }
 }
 
-impl<T> Iterator for PeekMore<T>
-where
-    T: Iterator,
-{
-    type Item = T::Item;
+impl<'a> Iterator for PeekMore<'a> {
+    type Item = char;
 
-    fn next(&mut self) -> Option<T::Item> {
+    fn next(&mut self) -> Option<char> {
         self.peek_index = self.peeked.len();
         if let Some(item) = self.peeked.pop_front() {
             return Some(item);
@@ -61,11 +51,8 @@ where
     }
 }
 
-impl<T> From<T> for PeekMore<T>
-where
-    T: Iterator,
-{
-    fn from(inner: T) -> Self {
+impl<'a> From<Chars<'a>> for PeekMore<'a> {
+    fn from(inner: Chars<'a>) -> Self {
         Self {
             inner,
             peeked: VecDeque::new(),
@@ -87,12 +74,12 @@ mod tests {
         assert_eq!(it.peek(), None);
         assert_eq!(it.next(), None);
         let mut it = PeekMore::from("abcdef".chars());
-        assert_eq!(it.peek(), Some(&'a'));
-        assert_eq!(it.peek(), Some(&'b'));
-        assert_eq!(it.peek(), Some(&'c'));
-        assert_eq!(it.peek(), Some(&'d'));
-        assert_eq!(it.peek(), Some(&'e'));
-        assert_eq!(it.peek(), Some(&'f'));
+        assert_eq!(it.peek(), Some('a'));
+        assert_eq!(it.peek(), Some('b'));
+        assert_eq!(it.peek(), Some('c'));
+        assert_eq!(it.peek(), Some('d'));
+        assert_eq!(it.peek(), Some('e'));
+        assert_eq!(it.peek(), Some('f'));
         assert_eq!(it.peek(), None);
         assert_eq!(it.next(), Some('a'));
         assert_eq!(it.next(), Some('b'));
@@ -105,11 +92,11 @@ mod tests {
         let mut it = PeekMore::from("abcdef".chars());
         assert_eq!(it.next(), Some('a'));
         assert_eq!(it.next(), Some('b'));
-        assert_eq!(it.peek(), Some(&'c'));
+        assert_eq!(it.peek(), Some('c'));
         assert_eq!(it.next(), Some('c'));
-        assert_eq!(it.peek(), Some(&'d'));
-        assert_eq!(it.peek(), Some(&'e'));
-        assert_eq!(it.peek(), Some(&'f'));
+        assert_eq!(it.peek(), Some('d'));
+        assert_eq!(it.peek(), Some('e'));
+        assert_eq!(it.peek(), Some('f'));
         assert_eq!(it.next(), Some('d'));
         assert_eq!(it.next(), Some('e'));
         assert_eq!(it.next(), Some('f'));
@@ -117,20 +104,20 @@ mod tests {
         assert_eq!(it.next(), None);
         let mut it = PeekMore::from("abcdef".chars());
         assert_eq!(it.next(), Some('a'));
-        assert_eq!(it.peek(), Some(&'b'));
-        assert_eq!(it.peek(), Some(&'c'));
+        assert_eq!(it.peek(), Some('b'));
+        assert_eq!(it.peek(), Some('c'));
         assert_eq!(it.next(), Some('b'));
-        assert_eq!(it.peek(), Some(&'c'));
-        assert_eq!(it.peek(), Some(&'d'));
+        assert_eq!(it.peek(), Some('c'));
+        assert_eq!(it.peek(), Some('d'));
         let mut it = PeekMore::from("abcdef".chars());
         assert_eq!(it.next(), Some('a'));
-        assert_eq!(it.peek(), Some(&'b'));
-        assert_eq!(it.peek(), Some(&'c'));
+        assert_eq!(it.peek(), Some('b'));
+        assert_eq!(it.peek(), Some('c'));
         assert_eq!(it.next(), Some('b'));
-        assert_eq!(it.peek(), Some(&'c'));
-        assert_eq!(it.peek(), Some(&'d'));
-        assert_eq!(it.peek(), Some(&'e'));
-        assert_eq!(it.peek(), Some(&'f'));
+        assert_eq!(it.peek(), Some('c'));
+        assert_eq!(it.peek(), Some('d'));
+        assert_eq!(it.peek(), Some('e'));
+        assert_eq!(it.peek(), Some('f'));
         assert_eq!(it.next(), Some('c'));
         assert_eq!(it.next(), Some('d'));
     }

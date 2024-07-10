@@ -163,13 +163,13 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
             tokens.push(Token::Literal(Literal::String(string)));
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
-            while let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+            while let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                 chars.next();
                 number.push(ch);
             }
             chars.back();
-            if chars.peek().is_some_and(|ch| *ch == '.') {
-                if let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+            if chars.peek().is_some_and(|ch| ch == '.') {
+                if let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                     chars.next();
                     chars.next();
                     number.push('.');
@@ -180,7 +180,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
             } else {
                 chars.back();
             }
-            while let Some(&ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+            while let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
                 chars.next();
                 number.push(ch);
             }
@@ -190,7 +190,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
             let ident_is_punct = is_punct(ch);
             let mut ident = String::from(ch);
             let mut following_lone_punct = None;
-            while let Some(&ch) = chars.peek() {
+            while let Some(ch) = chars.peek() {
                 if ch.is_whitespace() || ident_is_punct != is_punct(ch) {
                     break;
                 }

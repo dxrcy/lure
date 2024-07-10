@@ -1,6 +1,4 @@
 # ok
 func main()
-    a - b * c
-    # *( a +( b c ) )
-    # +( *( a b ) c )
+    let a = 123 + 97
 end

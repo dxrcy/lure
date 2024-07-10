@@ -569,7 +569,7 @@ impl TokenIter {
             Token::Keyword(Keyword::Asterisk) => BinaryOp::Multiply,
             Token::Keyword(Keyword::Slash) => BinaryOp::Divide,
             Token::Keyword(Keyword::Percent) => BinaryOp::Modulo,
-            Token::Keyword(Keyword::Ampersand) => BinaryOp::Concat,
+            Token::Keyword(Keyword::Ampersand) => BinaryOp::Concat, // This may change
             Token::Keyword(Keyword::And) => BinaryOp::And,
             Token::Keyword(Keyword::Or) => BinaryOp::Or,
             Token::Keyword(Keyword::DoubleEqual) => BinaryOp::Equal,
