@@ -1,10 +1,16 @@
 # ok
-func main (awiod,  )
-    print("Hello. World", a)
-    let abc =  2.3
-    let def = {
-        adw = 23 + (24 * 3) - 123
-    }
-    let ghi = abc
-    print(ghi)
+func main()
+    # 1 * 8 - 3
+    if a == 123 then
+        print(1)
+    elif a == 456 then
+        print(2)
+    else
+        print(3)
+    end
+    # match a
+    #     case 123 then print(1)
+    #     case 345 then print(2)
+    #     else print(3)
+    # end
 end

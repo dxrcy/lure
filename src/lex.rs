@@ -45,7 +45,7 @@ macro_rules! make_keyword {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 match self {
                     $(
-                        Self::$name => write!(f, "{}", $token),
+                        Self::$name => write!(f, "keyword `{}`", $token),
                     )*
                 }
             }
@@ -108,7 +108,7 @@ impl Display for Token {
         match self {
             Self::Eof => write!(f, "<EOF>"),
             Self::Ident(ident) => write!(f, "ident `{}`", ident),
-            Self::Keyword(keyword) => write!(f, "`{}`", keyword),
+            Self::Keyword(keyword) => write!(f, "{}", keyword),
             Self::Literal(literal) => write!(f, "literal {}", literal),
         }
     }
