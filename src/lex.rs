@@ -3,7 +3,7 @@ use std::{fmt, fmt::Display};
 
 pub type LexError = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Keyword(Keyword),
     Ident(String),
@@ -11,7 +11,7 @@ pub enum Token {
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     String(String),
     Number(f64),
@@ -21,7 +21,7 @@ pub enum Literal {
 
 macro_rules! make_keyword {
     ( $( $token:literal => $name:ident ),* $(,)? ) => {
-        #[derive(Debug, PartialEq)]
+        #[derive(Clone, Copy, Debug, PartialEq)]
         pub enum Keyword {
             $(
                 $name,
