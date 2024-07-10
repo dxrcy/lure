@@ -613,7 +613,7 @@ impl TokenIter {
             Token::Keyword(Keyword::ParenLeft) => {
                 let expr = self.expect_expr()?;
                 self.expect_keyword(Keyword::ParenRight)?;
-                Ok(expr)
+                Ok(Expr::Group(Box::new(expr)))
             }
 
             Token::Literal(literal) => {
