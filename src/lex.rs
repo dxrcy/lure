@@ -27,12 +27,15 @@ pub enum Literal {
 }
 
 macro_rules! make_keyword {
-    ( $( $token:literal => $name:ident ),* $(,)? ) => {
+    (
+        $( $keyword:literal => $keyword_name:ident ),* $(,)?
+        <
+        $( $punct:literal   => $punct_name:ident ),* $(,)?
+    ) => {
         #[derive(Clone, Copy, Debug, PartialEq)]
         pub enum Keyword {
-            $(
-                $name,
-            )*
+            $( $keyword_name, )*
+            $( $punct_name, )*
         }
 
         impl TryFrom<&str> for Keyword {
@@ -40,9 +43,8 @@ macro_rules! make_keyword {
 
             fn try_from(value: &str) -> Result<Self, Self::Error> {
                 Ok(match value {
-                    $(
-                        $token => Self::$name,
-                    )*
+                    $( $keyword => Self::$keyword_name, )*
+                    $( $punct   => Self::$punct_name, )*
                     _ => return Err(()),
                 })
             }
@@ -51,9 +53,8 @@ macro_rules! make_keyword {
         impl Display for Keyword {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 match self {
-                    $(
-                        Self::$name => write!(f, "keyword `{}`", $token),
-                    )*
+                    $( Self::$keyword_name => write!(f, "keyword `{}`", $keyword), )*
+                    $( Self::$punct_name => write!(f, "punctuation `{}`", $punct), )*
                 }
             }
         }
@@ -85,6 +86,7 @@ make_keyword! {
     "and" => And,
     "or" => Or,
     "not" => Not,
+    <
     "(" => ParenLeft,
     ")" => ParenRight,
     "{" => BraceLeft,
@@ -129,6 +131,12 @@ impl Display for Literal {
             Self::Number(number) => write!(f, "{}", number),
             Self::String(string) => write!(f, "{:?}", string),
         }
+    }
+}
+
+impl From<Keyword> for Token {
+    fn from(value: Keyword) -> Self {
+        Self::Keyword(value)
     }
 }
 
@@ -291,7 +299,7 @@ pub mod tests {
 
     #[test]
     fn lex_works() {
-        // Note the first newline escaped!
+        // Note the first newline is escaped!
         let file = "\
             # comment
             func main()
