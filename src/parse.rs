@@ -101,7 +101,7 @@ enum UnaryOp {
     Negative,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum BinaryOp {
     Add,
     Multiply,
@@ -207,6 +207,38 @@ macro_rules! unexpected {
                 )*
         )
     }};
+}
+
+impl BinaryOp {
+    /// ```
+    /// (unary)
+    ///
+    /// * / %
+    /// + -
+    /// (concat)
+    /// < > >= <=
+    /// == /=
+    /// and
+    /// or
+    /// ```
+    fn precendence(&self) -> u8 {
+        use BinaryOp::*;
+        match self {
+            Multiply | Divide | Modulo => 1,
+            Add | Subtract => 2,
+            Concat => 3,
+            LessThan | LessEqual | GreaterThan | GreaterEqual => 4,
+            Equal | NotEqual => 5,
+            And => 6,
+            Or => 7,
+        }
+    }
+}
+
+impl PartialOrd for BinaryOp {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.precendence().partial_cmp(&other.precendence())
+    }
 }
 
 pub fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, ParseError> {
@@ -531,7 +563,7 @@ impl TokenIter {
     fn expect_expr(&mut self) -> Result<Expr, ParseError> {
         let left = self.expect_expr_part()?;
 
-        let op = match self.peek() {
+        let left_op = match self.peek() {
             Token::Keyword(Keyword::Plus) => BinaryOp::Add,
             Token::Keyword(Keyword::Dash) => BinaryOp::Subtract,
             Token::Keyword(Keyword::Asterisk) => BinaryOp::Multiply,
@@ -555,9 +587,25 @@ impl TokenIter {
 
         let right = self.expect_expr()?;
 
-        // println!("{} and {}", op, right);
+        match right {
+            // Swap order of binary operations
+            // UNLESS the inner (rightmost) operation has higher precedence
+            // Note that equal-precendence operations will always swap, to
+            // maintain default left-to-right order
+            Expr::BinaryOp(right_op, middle, right) if !(right_op < left_op) => {
+                // Preserve literal order of left-middle-right, but make the
+                // leftmost expression the nested one
+                return Ok(Expr::BinaryOp(
+                    right_op,
+                    Box::new(Expr::BinaryOp(left_op, Box::new(left), middle)),
+                    right,
+                ));
+            }
 
-        Ok(Expr::BinaryOp(op, Box::new(left), Box::new(right)))
+            _ => {
+                return Ok(Expr::BinaryOp(left_op, Box::new(left), Box::new(right)));
+            }
+        }
     }
 
     fn expect_expr_part(&mut self) -> Result<Expr, ParseError> {
@@ -730,6 +778,7 @@ impl TokenIter {
 
     //TODO: Refactor this ideally. it is not very nice
     fn try_parse_assign(&mut self) -> Option<Result<Statement, ParseError>> {
+        // We don't yet know if it is an assignment statement or not
         let index = self.get_index();
 
         let origin = match self.next() {
@@ -746,9 +795,12 @@ impl TokenIter {
             return None;
         };
 
-        if let Err(err) = self.expect_keyword(Keyword::SingleEqual) {
-            return Some(Err(err));
+        if self.expect_keyword(Keyword::SingleEqual).is_err() {
+            self.set_index(index);
+            return None;
         };
+
+        // Ok now from here we know it MUST be an assignment
 
         let value = match self.expect_expr() {
             Ok(expr) => expr,
