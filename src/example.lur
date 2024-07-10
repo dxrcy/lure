@@ -1,5 +1,5 @@
 # ok
 func main()
-    a.b.[0] = 123
+    a.b[1+1].a = 123
     # b[0] = a
 end

@@ -189,9 +189,16 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
         } else {
             let ident_is_punct = is_punct(ch);
             let mut ident = String::from(ch);
+            let mut following_lone_punct = None;
             while let Some(&ch) = chars.peek() {
                 if ch.is_whitespace() || ident_is_punct != is_punct(ch) {
                     break;
+                }
+                if ident_is_punct {
+                    if let Some(keyword) = parse_lone_punct(ch) {
+                        following_lone_punct = Some(keyword);
+                        break;
+                    }
                 }
                 ident.push(ch);
                 chars.next();
@@ -210,6 +217,9 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
                 },
             };
             tokens.push(token);
+            if let Some(keyword) = following_lone_punct {
+                tokens.push(Token::Keyword(keyword));
+            }
         }
     }
 
