@@ -12,6 +12,7 @@ impl From<Vec<TokenRef>> for TokenIter {
 }
 
 impl TokenIter {
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> &Token {
         let Some(token_ref) = self.tokens.get(self.index) else {
             return &Token::Eof;
@@ -128,7 +129,6 @@ mod tests {
         assert_eq!(iter.next(), &Token::Eof);
         assert_eq!(iter.index, 3);
     }
-
 
     //TODO: Add test with line numbers
 }

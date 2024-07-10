@@ -80,6 +80,7 @@ enum Statement {
     Match(MatchStatement),
     While(While),
     For(For),
+    #[allow(dead_code)]
     Module(Module),
     //TODO: Template
 }
@@ -157,7 +158,7 @@ enum UnaryOp {
     Negative,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BinaryOp {
     Add,
     Multiply,
@@ -306,7 +307,13 @@ impl BinaryOp {
 
 impl PartialOrd for BinaryOp {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.precendence().partial_cmp(&other.precendence())
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BinaryOp {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.precendence().cmp(&other.precendence())
     }
 }
 
@@ -959,7 +966,7 @@ impl TokenIter {
             // UNLESS the inner (rightmost) operation has higher precedence
             // Note that equal-precendence operations will always swap, to
             // maintain default left-to-right order
-            Expr::BinaryOp(right_op, middle, right) if !(right_op < left_op) => {
+            Expr::BinaryOp(right_op, middle, right) if right_op >= left_op => {
                 // Preserve literal order of left-middle-right, but make the
                 // leftmost expression the nested one
                 return Ok(Expr::BinaryOp(
@@ -1127,8 +1134,6 @@ impl TokenIter {
                 return self.expect_func_expr();
             }
 
-            //TODO: Function expression
-            //
             token => {
                 let token = token.to_owned();
                 let reason = match token {
@@ -1142,7 +1147,7 @@ impl TokenIter {
                     // Generic reason
                     _ => "Cannot parse the tokens as an expression",
                 };
-                return Err(unexpected!(self.line(), token, ["expression"], reason,));
+                return Err(unexpected!(self.line(), token, ["expression"], reason));
             }
         }
     }

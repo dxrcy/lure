@@ -160,7 +160,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
             continue;
         }
         if ch == '#' {
-            while let Some(ch) = chars.next() {
+            for ch in chars.by_ref() {
                 if ch == '\n' {
                     line += 1;
                     break;
@@ -177,7 +177,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
             let quote = ch;
             let is_char = quote == '\'';
             let mut string = String::new();
-            while let Some(ch) = chars.next() {
+            for ch in chars.by_ref() {
                 if ch == '\n' {
                     line += 1;
                 }
@@ -193,15 +193,15 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
                 token: Token::Literal(Literal::String(string)),
                 line,
             });
-        } else if ch.is_digit(10) {
+        } else if ch.is_ascii_digit() {
             let mut number = String::from(ch);
-            while let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+            while let Some(ch) = chars.peek().filter(|ch| ch.is_ascii_digit()) {
                 chars.next();
                 number.push(ch);
             }
             chars.back();
             if chars.peek().is_some_and(|ch| ch == '.') {
-                if let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+                if let Some(ch) = chars.peek().filter(|ch| ch.is_ascii_digit()) {
                     chars.next();
                     chars.next();
                     number.push('.');
@@ -212,7 +212,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
             } else {
                 chars.back();
             }
-            while let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
+            while let Some(ch) = chars.peek().filter(|ch| ch.is_ascii_digit()) {
                 chars.next();
                 number.push(ch);
             }
@@ -273,10 +273,7 @@ fn is_valid_char(ch: char) -> bool {
 }
 
 fn is_punct(ch: char) -> bool {
-    match ch {
-        'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '@' => false,
-        _ => true,
-    }
+    matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '@')
 }
 
 fn parse_lone_punct(ch: char) -> Option<Keyword> {

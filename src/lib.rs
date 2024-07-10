@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 mod lex;
 mod parse;
 mod peek_more;
