@@ -73,7 +73,7 @@ type StatementList = Vec<Statement>;
 #[derive(Debug, PartialEq)]
 enum Statement {
     Expr(Expr),
-    Func(Func),
+    Func(FuncStatement),
     Let(Let),
     Assign(Assign),
     If(IfStatement),
@@ -85,8 +85,14 @@ enum Statement {
 }
 
 #[derive(Debug, PartialEq)]
-struct Func {
+struct FuncStatement {
     name: Ident,
+    params: DeclareParams,
+    body: StatementList,
+}
+
+#[derive(Debug, PartialEq)]
+struct FuncExpr {
     params: DeclareParams,
     body: StatementList,
 }
@@ -133,6 +139,7 @@ struct Assign {
 
 #[derive(Debug, PartialEq)]
 enum Expr {
+    Group(Box<Expr>),
     Literal(Literal),
     LValue(LValue),
     Call(LValue, CallParams),
@@ -141,7 +148,7 @@ enum Expr {
     If(IfExpr),
     Match(MatchExpr),
     Table(Table),
-    Group(Box<Expr>),
+    Func(FuncExpr),
 }
 
 #[derive(Debug, PartialEq)]
@@ -473,7 +480,71 @@ impl TokenIter {
 
         self.expect_keyword(Keyword::End)?;
 
-        Ok(Statement::Func(Func { name, params, body }))
+        Ok(Statement::Func(FuncStatement { name, params, body }))
+    }
+
+    fn expect_func_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect_keyword(Keyword::Func)?;
+
+        self.expect_keyword(Keyword::ParenLeft)?;
+
+        let mut params = DeclareParams::default();
+        loop {
+            match self.next() {
+                Token::Keyword(Keyword::ParenRight) => break,
+
+                Token::Keyword(Keyword::Spread) => {
+                    let ident = match self.next() {
+                        Token::Ident(ident) => ident.to_owned(),
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                ["parameter name"],
+                                "Spread operator must be followed by a parameter name",
+                            ))
+                        }
+                    };
+                    params.rest = Some(ident);
+                    self.expect_keyword_reason(
+                        Keyword::ParenRight,
+                        "Spread parameter must be last parameter",
+                    )?;
+                    break;
+                }
+
+                Token::Ident(ident) => {
+                    params.params.push(ident.to_owned());
+                    match self.next() {
+                        Token::Keyword(Keyword::Comma) => (),
+                        Token::Keyword(Keyword::ParenRight) => break,
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                [Keyword::Comma, Keyword::ParenRight],
+                                "Parameters must be separated with commas",
+                            ))
+                        }
+                    }
+                }
+
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        ["parameter name", Keyword::ParenRight],
+                        // reason omitted
+                    ));
+                }
+            }
+        }
+
+        let body = self.expect_statement_list()?;
+
+        self.expect_keyword(Keyword::End)?;
+
+        Ok(Expr::Func(FuncExpr { params, body }))
     }
 
     fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
@@ -1043,12 +1114,17 @@ impl TokenIter {
                 // is pointless and a bad idea. But then again it is not hurting
                 // anybody.
                 self.reverse(1);
-                return Ok(self.expect_if_expr()?);
+                return self.expect_if_expr();
             }
 
             Token::Keyword(Keyword::Match) => {
                 self.reverse(1);
-                return Ok(self.expect_match_expr()?);
+                return self.expect_match_expr();
+            }
+
+            Token::Keyword(Keyword::Func) => {
+                self.reverse(1);
+                return self.expect_func_expr();
             }
 
             //TODO: Function expression

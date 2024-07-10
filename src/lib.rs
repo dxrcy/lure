@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 mod lex;
 mod parse;
 mod peek_more;

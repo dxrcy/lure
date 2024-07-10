@@ -1,7 +1,8 @@
 # ok
 func main()
-    while a < 1 do
-        println(a)
+    let a = func()
+        print(123)
     end
+    a()
 end
 
