@@ -3,16 +3,11 @@ use crate::lex::{Token, TokenRef};
 pub struct TokenIter {
     tokens: Vec<TokenRef>,
     index: usize,
-    line: usize,
 }
 
 impl From<Vec<TokenRef>> for TokenIter {
     fn from(tokens: Vec<TokenRef>) -> Self {
-        Self {
-            tokens,
-            index: 0,
-            line: 0,
-        }
+        Self { tokens, index: 0 }
     }
 }
 
@@ -52,6 +47,12 @@ impl TokenIter {
         }
         self.index -= offset;
         true
+    }
+
+    pub fn line(&self) -> usize {
+        self.tokens
+            .get(self.index - 1)
+            .map_or(0, |token_ref| token_ref.line)
     }
 }
 
@@ -127,4 +128,7 @@ mod tests {
         assert_eq!(iter.next(), &Token::Eof);
         assert_eq!(iter.index, 3);
     }
+
+
+    //TODO: Add test with line numbers
 }

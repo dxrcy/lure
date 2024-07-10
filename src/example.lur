@@ -1,4 +1,7 @@
 # ok
 func main()
-    let a = 123 + 97
+    if abc then
+    elif 123 then
+    end
 end
+

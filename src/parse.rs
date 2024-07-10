@@ -1,9 +1,49 @@
+use std::fmt::{self, Display};
+
 use crate::{
     lex::{Keyword, Literal, Token, TokenRef},
     TokenIter,
 };
 
-pub type ParseError = String;
+//TODO: Add line numbers
+#[derive(Debug)]
+pub struct ParseError {
+    pub error: ParseErrorKind,
+    pub line: usize,
+}
+
+#[derive(Debug)]
+pub enum ParseErrorKind {
+    Unexpected {
+        found: Token,
+        expected: String,
+        reason: Option<&'static str>,
+    },
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.error {
+            ParseErrorKind::Unexpected {
+                found,
+                expected,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "Unexpected {} on line {}. Expected {}.",
+                    found,
+                    self.line + 1,
+                    expected
+                )?;
+                if let Some(reason) = reason {
+                    write!(f, "\n{}.", reason)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct SourceModule {
@@ -196,17 +236,29 @@ struct TableItem {
 // }
 
 macro_rules! unexpected {
-    ( $found:expr, $expected_1:expr $( , $expected_n:expr )* $(,)? ) => {{
-        format!(
-            "Unexpected {}. Expected {}",
-            $found,
-            String::new()
-                + &($expected_1).to_string()
-                $(
-                    + " or " + &($expected_n).to_string()
-                )*
-        )
+    (
+        $line:expr,
+        $found:expr,
+        [ $expected_1:expr $(, $expected_n:expr )* $(,)? ]
+        $(, $reason:expr )? $(,)?
+    ) => {{
+        let found = ($found).into();
+        ParseError {
+            line: $line,
+            error: ParseErrorKind::Unexpected {
+                found,
+                expected: String::new()
+                    + &($expected_1).to_string()
+                    $(
+                        + " or " + &($expected_n).to_string()
+                    )*,
+                reason: unexpected!(@reason $($reason)?),
+            },
+        }
     }};
+
+    (@reason) => { None };
+    (@reason $reason:expr) => { Some($reason) };
 }
 
 impl BinaryOp {
@@ -246,6 +298,7 @@ pub fn parse_source_module(tokens: Vec<TokenRef>) -> Result<SourceModule, ParseE
 
     let module = tokens.expect_statement_list()?;
 
+    // Does this need to be here ?
     tokens.expect_eof()?;
 
     Ok(SourceModule {
@@ -258,13 +311,29 @@ impl TokenIter {
     fn expect_eof(&mut self) -> Result<(), ParseError> {
         match self.peek() {
             Token::Eof => Ok(()),
-            token => Err(unexpected!(token, Token::Eof)),
+            token => Err(unexpected!(self.line(), token.to_owned(), [Token::Eof])),
         }
     }
+
     fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), ParseError> {
         match self.next() {
             Token::Keyword(other) if other == &keyword => Ok(()),
-            token => Err(unexpected!(token, keyword)),
+            token => Err(unexpected!(self.line(), token.to_owned(), [keyword])),
+        }
+    }
+    fn expect_keyword_reason(
+        &mut self,
+        keyword: Keyword,
+        reason: &'static str,
+    ) -> Result<(), ParseError> {
+        match self.next() {
+            Token::Keyword(other) if other == &keyword => Ok(()),
+            token => Err(unexpected!(
+                self.line(),
+                token.to_owned(),
+                [keyword],
+                reason
+            )),
         }
     }
 
@@ -344,10 +413,21 @@ impl TokenIter {
                 Token::Keyword(Keyword::Spread) => {
                     let ident = match self.next() {
                         Token::Ident(ident) => ident.to_owned(),
-                        token => return Err(unexpected!(token, "parameter name")),
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                ["parameter name"],
+                                "Spread operator must be followed by a parameter name",
+                            ))
+                        }
                     };
                     params.rest = Some(ident);
-                    self.expect_keyword(Keyword::ParenRight)?;
+                    self.expect_keyword_reason(
+                        Keyword::ParenRight,
+                        "Spread parameter must be last parameter",
+                    )?;
+                    break;
                 }
 
                 Token::Ident(ident) => {
@@ -356,12 +436,24 @@ impl TokenIter {
                         Token::Keyword(Keyword::Comma) => (),
                         Token::Keyword(Keyword::ParenRight) => break,
                         token => {
-                            return Err(unexpected!(token, Keyword::Comma, Keyword::ParenRight))
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                [Keyword::Comma, Keyword::ParenRight],
+                                "Parameters must be separated with commas",
+                            ))
                         }
                     }
                 }
 
-                token => return Err(unexpected!(token, "parameter name", Keyword::ParenRight)),
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        ["parameter name", Keyword::ParenRight],
+                        // reason omitted
+                    ));
+                }
             }
         }
 
@@ -373,10 +465,17 @@ impl TokenIter {
     }
 
     fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
-        self.expect_keyword(Keyword::If)?;
+        // Redundant
+        self.expect_keyword(
+            Keyword::If,
+            // reason omitted
+        )?;
 
         let condition = self.expect_expr()?;
-        self.expect_keyword(Keyword::Then)?;
+        self.expect_keyword_reason(
+            Keyword::Then,
+            "`if` condition must be followed with `then` keyword",
+        )?;
         let body = self.expect_statement_list()?;
         let if_branch = Box::new(IfBranch { condition, body });
 
@@ -386,7 +485,10 @@ impl TokenIter {
                 Token::Keyword(Keyword::Elif) => {
                     self.next();
                     let condition = self.expect_expr()?;
-                    self.expect_keyword(Keyword::Then)?;
+                    self.expect_keyword_reason(
+                        Keyword::Then,
+                        "`elif` condition must be followed with `then` keyword",
+                    )?;
                     let body = self.expect_statement_list()?;
                     elif_branches.push(IfBranch { condition, body });
                 }
@@ -394,11 +496,11 @@ impl TokenIter {
                 Token::Keyword(Keyword::End) => break,
                 token => {
                     return Err(unexpected!(
-                        token,
-                        Keyword::Elif,
-                        Keyword::Else,
-                        Keyword::End
-                    ))
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Elif, Keyword::Else, Keyword::End],
+                        // reason omitted
+                    ));
                 }
             }
         }
@@ -410,10 +512,20 @@ impl TokenIter {
                 Some(body)
             }
             Token::Keyword(Keyword::End) => None,
-            token => return Err(unexpected!(token, Keyword::Else, Keyword::End)),
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    [Keyword::Else, Keyword::End],
+                    // reason omitted
+                ));
+            }
         };
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
 
         Ok(Statement::If(IfStatement {
             if_branch,
@@ -422,11 +534,21 @@ impl TokenIter {
         }))
     }
 
+    // Perhaps it would be better to use `expect_if_statement` and then check
+    // for `else` branch to convert to `Expr`
+
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
-        self.expect_keyword(Keyword::If)?;
+        // Redundant
+        self.expect_keyword(
+            Keyword::If,
+            // reason omitted
+        )?;
 
         let condition = self.expect_expr()?;
-        self.expect_keyword(Keyword::Then)?;
+        self.expect_keyword_reason(
+            Keyword::Then,
+            "`if` condition must be followed with `then` keyword",
+        )?;
         let body = self.expect_statement_list()?;
         let if_branch = Box::new(IfBranch { condition, body });
 
@@ -436,12 +558,22 @@ impl TokenIter {
                 Token::Keyword(Keyword::Elif) => {
                     self.next();
                     let condition = self.expect_expr()?;
-                    self.expect_keyword(Keyword::Then)?;
+                    self.expect_keyword_reason(
+                        Keyword::Then,
+                        "`elif` condition must be followed with `then` keyword",
+                    )?;
                     let body = self.expect_statement_list()?;
                     elif_branches.push(IfBranch { condition, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
-                token => return Err(unexpected!(token, Keyword::Elif, Keyword::Else,)),
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Elif, Keyword::Else],
+                        // reason omitted
+                    ));
+                }
             }
         }
 
@@ -451,10 +583,20 @@ impl TokenIter {
                 let body = self.expect_statement_list()?;
                 body
             }
-            token => return Err(unexpected!(token, Keyword::Else)),
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    [Keyword::Else],
+                    "`if` expressions must include an `else` branch",
+                ))
+            }
         };
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
 
         Ok(Expr::If(IfExpr {
             if_branch,
@@ -464,7 +606,11 @@ impl TokenIter {
     }
 
     fn expect_match_statement(&mut self) -> Result<Statement, ParseError> {
-        self.expect_keyword(Keyword::Match)?;
+        // Reduntant
+        self.expect_keyword(
+            Keyword::Match,
+            // reason omitted
+        )?;
 
         let target = Box::new(self.expect_expr()?);
 
@@ -474,7 +620,10 @@ impl TokenIter {
                 Token::Keyword(Keyword::Case) => {
                     self.next();
                     let pattern = self.expect_expr()?;
-                    self.expect_keyword(Keyword::Then)?;
+                    self.expect_keyword_reason(
+                        Keyword::Then,
+                        "`case` pattern must be followed with `then` keyword",
+                    )?;
                     let body = self.expect_statement_list()?;
                     case_branches.push(MatchBranch { pattern, body });
                 }
@@ -482,11 +631,11 @@ impl TokenIter {
                 Token::Keyword(Keyword::End) => break,
                 token => {
                     return Err(unexpected!(
-                        token,
-                        Keyword::Case,
-                        Keyword::Else,
-                        Keyword::End
-                    ))
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Case, Keyword::Else, Keyword::End],
+                        // reason omitted
+                    ));
                 }
             }
         }
@@ -498,10 +647,20 @@ impl TokenIter {
                 Some(body)
             }
             Token::Keyword(Keyword::End) => None,
-            token => return Err(unexpected!(token, Keyword::Else, Keyword::End)),
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    [Keyword::Else, Keyword::End],
+                    // reason omitted
+                ));
+            }
         };
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
 
         Ok(Statement::Match(MatchStatement {
             target,
@@ -511,7 +670,11 @@ impl TokenIter {
     }
 
     fn expect_match_expr(&mut self) -> Result<Expr, ParseError> {
-        self.expect_keyword(Keyword::Match)?;
+        // Redundant
+        self.expect_keyword(
+            Keyword::Match,
+            // reason omitted
+        )?;
 
         let target = Box::new(self.expect_expr()?);
 
@@ -521,12 +684,22 @@ impl TokenIter {
                 Token::Keyword(Keyword::Case) => {
                     self.next();
                     let pattern = self.expect_expr()?;
-                    self.expect_keyword(Keyword::Then)?;
+                    self.expect_keyword_reason(
+                        Keyword::Then,
+                        "`case` pattern must be followed with `then` keyword",
+                    )?;
                     let body = self.expect_statement_list()?;
                     case_branches.push(MatchBranch { pattern, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
-                token => return Err(unexpected!(token, Keyword::Case, Keyword::Else,)),
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Case, Keyword::Else],
+                        // reason omitted
+                    ));
+                }
             }
         }
 
@@ -536,10 +709,19 @@ impl TokenIter {
                 let body = self.expect_statement_list()?;
                 body
             }
-            token => return Err(unexpected!(token, Keyword::Else)),
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    [Keyword::Else],
+                    "`match` expressions must include an `else` branch",
+                ))
+            }
         };
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End, // reason omitted
+        )?;
 
         Ok(Expr::Match(MatchExpr {
             target,
@@ -556,7 +738,12 @@ impl TokenIter {
     fn expect_ident(&mut self) -> Result<Ident, ParseError> {
         match self.next() {
             Token::Ident(ident) => Ok(ident.to_owned()),
-            token => Err(unexpected!(token, "identifier name")),
+            token => Err(unexpected!(
+                self.line(),
+                token.to_owned(),
+                ["identifier name"],
+                // reason omitted
+            )),
         }
     }
 
@@ -641,6 +828,10 @@ impl TokenIter {
                                     self.next();
                                     let expr = self.expect_expr()?;
                                     params.rest = Some(Box::new(expr));
+                                    self.expect_keyword_reason(
+                                        Keyword::ParenRight,
+                                        "Spread argument must be last argument",
+                                    )?;
                                     break;
                                 }
 
@@ -652,9 +843,10 @@ impl TokenIter {
                                         Token::Keyword(Keyword::ParenRight) => break,
                                         token => {
                                             return Err(unexpected!(
-                                                token,
-                                                Keyword::Comma,
-                                                Keyword::ParenRight,
+                                                self.line(),
+                                                token.to_owned(),
+                                                [Keyword::Comma, Keyword::ParenRight],
+                                                "Arguments must be separated with commas",
                                             ))
                                         }
                                     }
@@ -696,9 +888,10 @@ impl TokenIter {
 
                             _ => {
                                 return Err(unexpected!(
-                                    Keyword::SingleEqual, // Perhaps more context would be nice
-                                    "literal or identifier with `=`",
-                                    "expression",
+                                    self.line(),
+                                    Keyword::SingleEqual,
+                                    ["literal or identifier with `=`", "expression"],
+                                    "Table key must be a literal or an identifier followed by `=`",
                                 ));
                             }
                         },
@@ -710,8 +903,7 @@ impl TokenIter {
                         }
                     };
 
-                    let value = self.expect_expr()?;
-                    let value = Box::new(value);
+                    let value = Box::new(self.expect_expr()?);
 
                     table.items.push(TableItem { key, value });
 
@@ -724,7 +916,12 @@ impl TokenIter {
                         }
                         Token::Keyword(Keyword::BraceRight) => break,
                         token => {
-                            return Err(unexpected!(token, Keyword::Comma, Keyword::BraceRight))
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                [Keyword::Comma, Keyword::BraceRight],
+                                "Table items must be separated with commas",
+                            ))
                         }
                     }
                 }
@@ -733,6 +930,9 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::If) => {
+                // Maybe reversing and then immediately checking the same token
+                // is pointless and a bad idea. But then again it is not hurting
+                // anybody.
                 self.reverse(1);
                 return Ok(self.expect_if_expr()?);
             }
@@ -742,7 +942,14 @@ impl TokenIter {
                 return Ok(self.expect_match_expr()?);
             }
 
-            token => return Err(unexpected!(token, "expression")),
+            token => {
+                return Err(unexpected!(
+                    self.line(),
+                    token.to_owned(),
+                    ["expression"],
+                    "Cannot parse the tokens as an expression" // Terrible explanation
+                ));
+            }
         }
     }
 
@@ -756,7 +963,12 @@ impl TokenIter {
                     match self.next() {
                         Token::Ident(ident) => LValuePart::Ident(ident.to_owned()),
                         token => {
-                            return Err(unexpected!(token, "identifier name"));
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                ["identifier name"],
+                                "Identifier name must follow `.`" // Terrible explanation again
+                            ));
                         }
                     }
                 }
@@ -764,7 +976,10 @@ impl TokenIter {
                 Token::Keyword(Keyword::BracketLeft) => {
                     self.next();
                     let expr = self.expect_expr()?;
-                    self.expect_keyword(Keyword::BracketRight)?;
+                    self.expect_keyword_reason(
+                        Keyword::BracketRight,
+                        "Subscript must be delimited by `]`",
+                    )?;
                     LValuePart::Subscript(expr)
                 }
 
