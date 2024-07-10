@@ -3,6 +3,13 @@ use std::{fmt, fmt::Display};
 
 pub type LexError = String;
 
+//TODO: Change name
+#[derive(Debug)]
+pub struct TokenRef {
+    pub token: Token,
+    pub line: usize,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Keyword(Keyword),
@@ -125,12 +132,20 @@ impl Display for Literal {
     }
 }
 
-pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
-    let mut tokens = Vec::new();
+pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
+    let mut tokens: Vec<TokenRef> = Vec::new();
 
     let mut chars = PeekMore::from(file.chars());
+    let mut line = 0;
+
+    // Newlines can only occur as whitespace, or inside string literals
+    // So only need to be checked in these cases
 
     while let Some(ch) = chars.next() {
+        if ch == '\n' {
+            line += 1;
+            continue;
+        }
         if !is_valid_char(ch) {
             return Err(format!("Invalid character: 0x{:02x}", ch as u8));
         }
@@ -140,18 +155,25 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
         if ch == '#' {
             while let Some(ch) = chars.next() {
                 if ch == '\n' {
+                    line += 1;
                     break;
                 }
             }
             continue;
         }
         if let Some(keyword) = parse_lone_punct(ch) {
-            tokens.push(Token::Keyword(keyword));
+            tokens.push(TokenRef {
+                token: Token::Keyword(keyword),
+                line,
+            });
         } else if ch == '"' || ch == '\'' {
             let quote = ch;
             let is_char = quote == '\'';
             let mut string = String::new();
             while let Some(ch) = chars.next() {
+                if ch == '\n' {
+                    line += 1;
+                }
                 if ch == '"' {
                     break;
                 }
@@ -160,7 +182,10 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
                     break;
                 }
             }
-            tokens.push(Token::Literal(Literal::String(string)));
+            tokens.push(TokenRef {
+                token: Token::Literal(Literal::String(string)),
+                line,
+            });
         } else if ch.is_digit(10) {
             let mut number = String::from(ch);
             while let Some(ch) = chars.peek().filter(|ch| ch.is_digit(10)) {
@@ -185,7 +210,10 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
                 number.push(ch);
             }
             let number: f64 = number.parse().expect("Number should be valid");
-            tokens.push(Token::Literal(Literal::Number(number)));
+            tokens.push(TokenRef {
+                token: Token::Literal(Literal::Number(number)),
+                line,
+            });
         } else {
             let ident_is_punct = is_punct(ch);
             let mut ident = String::from(ch);
@@ -216,9 +244,12 @@ pub fn lex_tokens(file: &str) -> Result<Vec<Token>, LexError> {
                     _ => Token::Ident(ident),
                 },
             };
-            tokens.push(token);
+            tokens.push(TokenRef { token, line });
             if let Some(keyword) = following_lone_punct {
-                tokens.push(Token::Keyword(keyword));
+                tokens.push(TokenRef {
+                    token: Token::Keyword(keyword),
+                    line,
+                });
             }
         }
     }
@@ -260,35 +291,67 @@ pub mod tests {
 
     #[test]
     fn lex_works() {
-        let file = r#"
+        // Note the first newline escaped!
+        let file = "\
             # comment
             func main()
-                print("abc") # oiajd
+                print(\"abc\") #oiajd
                 let x = 2.3
             end
-        "#;
+        ";
         let tokens = lex_tokens(file).expect("Failed to lex");
         for token in &tokens {
             println!("{:?}", token);
         }
         let mut tokens = tokens.into_iter();
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Func)));
-        assert_eq!(tokens.next(), Some(Token::Ident("main".to_string())));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenLeft)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenRight)));
-        assert_eq!(tokens.next(), Some(Token::Ident("print".to_string())));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenLeft)));
+
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::Func));
+        assert_eq!(token_ref.line, 1);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Ident("main".to_string()));
+        assert_eq!(token_ref.line, 1);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::ParenLeft));
+        assert_eq!(token_ref.line, 1);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::ParenRight));
+        assert_eq!(token_ref.line, 1);
+
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Ident("print".to_string()));
+        assert_eq!(token_ref.line, 2);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::ParenLeft));
+        assert_eq!(token_ref.line, 2);
+        let token_ref = tokens.next().unwrap();
         assert_eq!(
-            tokens.next(),
-            Some(Token::Literal(Literal::String("abc".to_string())))
+            token_ref.token,
+            Token::Literal(Literal::String("abc".to_string()))
         );
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::ParenRight)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Let)));
-        assert_eq!(tokens.next(), Some(Token::Ident("x".to_string())));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::SingleEqual)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.3))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::End)));
-        assert_eq!(tokens.next(), None);
+        assert_eq!(token_ref.line, 2);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::ParenRight));
+        assert_eq!(token_ref.line, 2);
+
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::Let));
+        assert_eq!(token_ref.line, 3);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Ident("x".to_string()));
+        assert_eq!(token_ref.line, 3);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::SingleEqual));
+        assert_eq!(token_ref.line, 3);
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Literal(Literal::Number(2.3)));
+        assert_eq!(token_ref.line, 3);
+
+        let token_ref = tokens.next().unwrap();
+        assert_eq!(token_ref.token, Token::Keyword(Keyword::End));
+        assert_eq!(token_ref.line, 4);
+
+        assert!(tokens.next().is_none());
     }
 
     #[test]
@@ -312,53 +375,122 @@ pub mod tests {
         }
         let mut tokens = tokens.into_iter();
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(2.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(2.3))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(2.3))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Dot));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(34.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.34))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.0))
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Keyword(Keyword::Spread)
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(34.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.0))
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Keyword(Keyword::Spread)
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(34.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Dot));
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Dot));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(34.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(1.2))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(3.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(1.2))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Dot));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(3.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Dot)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(56.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.34))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Dot));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(56.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.34))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(56.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Plus)));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.34))
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Keyword(Keyword::Spread)
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(56.0))
+        );
+        assert_eq!(tokens.next().unwrap().token, Token::Keyword(Keyword::Plus));
 
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(12.0))));
-        assert_eq!(tokens.next(), Some(Token::Keyword(Keyword::Spread)));
-        assert_eq!(tokens.next(), Some(Token::Literal(Literal::Number(34.56))));
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(12.0))
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Keyword(Keyword::Spread)
+        );
+        assert_eq!(
+            tokens.next().unwrap().token,
+            Token::Literal(Literal::Number(34.56))
+        );
 
-        assert_eq!(tokens.next(), None);
+        assert!(tokens.next().is_none());
     }
 }

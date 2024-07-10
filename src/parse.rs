@@ -1,5 +1,5 @@
 use crate::{
-    lex::{Keyword, Literal, Token},
+    lex::{Keyword, Literal, Token, TokenRef},
     TokenIter,
 };
 
@@ -210,7 +210,7 @@ macro_rules! unexpected {
 }
 
 impl BinaryOp {
-    /// ```
+    /// ```lure
     /// (unary)
     ///
     /// * / %
@@ -241,7 +241,7 @@ impl PartialOrd for BinaryOp {
     }
 }
 
-pub fn parse_source_module(tokens: Vec<Token>) -> Result<SourceModule, ParseError> {
+pub fn parse_source_module(tokens: Vec<TokenRef>) -> Result<SourceModule, ParseError> {
     let mut tokens = TokenIter::from(tokens);
 
     let module = tokens.expect_statement_list()?;
