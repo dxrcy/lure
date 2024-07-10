@@ -1,16 +1,14 @@
 # ok
 func main()
     # 1 * 8 - 3
-    if a == 123 then
-        print(1)
-    elif a == 456 then
-        print(2)
+    let b = if a == 123 then
+        123
     else
-        print(3)
+        3
     end
-    # match a
-    #     case 123 then print(1)
-    #     case 345 then print(2)
-    #     else print(3)
-    # end
+    let c = match a
+        case 123 then print(1)
+        case 345 then print(2)
+        else print(3)
+    end
 end

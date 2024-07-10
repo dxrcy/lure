@@ -82,8 +82,8 @@ enum Expr {
     Call(IdentPath, CallParams),
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
-    If(IfStatement),
-    Match(MatchStatement),
+    If(IfExpr),
+    Match(MatchExpr),
     Table(Table),
     Group(Box<Expr>),
 }
@@ -358,20 +358,60 @@ impl TokenIter {
             }
         }
 
-        let mut else_branch = None;
-        match self.peek() {
+        let else_branch = match self.peek() {
             Token::Keyword(Keyword::Else) => {
                 self.next();
                 let body = self.expect_statement_list()?;
-                else_branch = Some(body);
+                Some(body)
             }
-            Token::Keyword(Keyword::End) => (),
+            Token::Keyword(Keyword::End) => None,
             token => return Err(unexpected!(token, Keyword::Else, Keyword::End)),
-        }
+        };
 
         self.expect_keyword(Keyword::End)?;
 
         Ok(Statement::If(IfStatement {
+            if_branch,
+            elif_branches,
+            else_branch,
+        }))
+    }
+
+    fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect_keyword(Keyword::If)?;
+
+        let condition = self.expect_expr()?;
+        self.expect_keyword(Keyword::Then)?;
+        let body = self.expect_statement_list()?;
+        let if_branch = Box::new(IfBranch { condition, body });
+
+        let mut elif_branches = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::Elif) => {
+                    self.next();
+                    let condition = self.expect_expr()?;
+                    self.expect_keyword(Keyword::Then)?;
+                    let body = self.expect_statement_list()?;
+                    elif_branches.push(IfBranch { condition, body });
+                }
+                Token::Keyword(Keyword::Else) => break,
+                token => return Err(unexpected!(token, Keyword::Elif, Keyword::Else,)),
+            }
+        }
+
+        let else_branch = match self.peek() {
+            Token::Keyword(Keyword::Else) => {
+                self.next();
+                let body = self.expect_statement_list()?;
+                body
+            }
+            token => return Err(unexpected!(token, Keyword::Else)),
+        };
+
+        self.expect_keyword(Keyword::End)?;
+
+        Ok(Expr::If(IfExpr {
             if_branch,
             elif_branches,
             else_branch,
@@ -406,20 +446,57 @@ impl TokenIter {
             }
         }
 
-        let mut else_branch = None;
-        match self.peek() {
+        let else_branch = match self.peek() {
             Token::Keyword(Keyword::Else) => {
                 self.next();
                 let body = self.expect_statement_list()?;
-                else_branch = Some(body);
+                Some(body)
             }
-            Token::Keyword(Keyword::End) => (),
+            Token::Keyword(Keyword::End) => None,
             token => return Err(unexpected!(token, Keyword::Else, Keyword::End)),
-        }
+        };
 
         self.expect_keyword(Keyword::End)?;
 
         Ok(Statement::Match(MatchStatement {
+            target,
+            case_branches,
+            else_branch,
+        }))
+    }
+
+    fn expect_match_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect_keyword(Keyword::Match)?;
+
+        let target = Box::new(self.expect_expr()?);
+
+        let mut case_branches = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::Case) => {
+                    self.next();
+                    let pattern = self.expect_expr()?;
+                    self.expect_keyword(Keyword::Then)?;
+                    let body = self.expect_statement_list()?;
+                    case_branches.push(MatchBranch { pattern, body });
+                }
+                Token::Keyword(Keyword::Else) => break,
+                token => return Err(unexpected!(token, Keyword::Case, Keyword::Else,)),
+            }
+        }
+
+        let else_branch = match self.peek() {
+            Token::Keyword(Keyword::Else) => {
+                self.next();
+                let body = self.expect_statement_list()?;
+                body
+            }
+            token => return Err(unexpected!(token, Keyword::Else)),
+        };
+
+        self.expect_keyword(Keyword::End)?;
+
+        Ok(Expr::Match(MatchExpr {
             target,
             case_branches,
             else_branch,
@@ -534,12 +611,13 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::Dash) => {
-                let expr = self.expect_expr()?;
-                return Ok(Expr::UnaryOp(UnaryOp::Negative, Box::new(expr)));
+                return Ok(Expr::UnaryOp(
+                    UnaryOp::Negative,
+                    Box::new(self.expect_expr()?),
+                ));
             }
             Token::Keyword(Keyword::Not) => {
-                let expr = self.expect_expr()?;
-                return Ok(Expr::UnaryOp(UnaryOp::Not, Box::new(expr)));
+                return Ok(Expr::UnaryOp(UnaryOp::Not, Box::new(self.expect_expr()?)));
             }
 
             Token::Keyword(Keyword::BraceLeft) => {
@@ -591,6 +669,16 @@ impl TokenIter {
                 }
 
                 return Ok(Expr::Table(table));
+            }
+
+            Token::Keyword(Keyword::If) => {
+                self.reverse(1);
+                return Ok(self.expect_if_expr()?);
+            }
+
+            Token::Keyword(Keyword::Match) => {
+                self.reverse(1);
+                return Ok(self.expect_match_expr()?);
             }
 
             token => return Err(unexpected!(token, "expression")),

@@ -37,6 +37,14 @@ impl TokenIter {
         self.index = index;
         token
     }
+
+    pub fn reverse(&mut self, offset: usize) -> bool {
+        if offset > self.index {
+            return false;
+        }
+        self.index -= offset;
+        true
+    }
 }
 
 #[cfg(test)]
