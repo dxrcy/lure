@@ -1,7 +1,8 @@
 # ok
 func main()
-    if abc then
-    elif 123 then
+    let a = match 123
+        case 123 then 123
+        else 123
     end
 end
 

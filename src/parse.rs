@@ -19,6 +19,7 @@ pub enum ParseErrorKind {
         expected: String,
         reason: Option<&'static str>,
     },
+    MissingFinalExpression,
 }
 
 impl Display for ParseError {
@@ -40,6 +41,14 @@ impl Display for ParseError {
                     write!(f, "\n{}.", reason)?;
                 }
                 Ok(())
+            }
+
+            ParseErrorKind::MissingFinalExpression => {
+                write!(
+                    f,
+                    "If expression branch does not end with expression, on line {}.",
+                    self.line + 1
+                )
             }
         }
     }
@@ -534,8 +543,25 @@ impl TokenIter {
         }))
     }
 
+    fn expect_last_statement_is_expr(
+        &mut self,
+        statements: &[Statement],
+    ) -> Result<(), ParseError> {
+        match statements.last() {
+            Some(Statement::Expr(_)) => Ok(()),
+            //TODO: Separate Some(_) and None
+            _ => Err(ParseError {
+                line: self.line(),
+                error: ParseErrorKind::MissingFinalExpression,
+            }),
+        }
+    }
+
     // Perhaps it would be better to use `expect_if_statement` and then check
     // for `else` branch to convert to `Expr`
+    //
+    // Also, maybe the check for final expression in each branch should be
+    // performed in the next pass.
 
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
         // Redundant
@@ -550,6 +576,7 @@ impl TokenIter {
             "`if` condition must be followed with `then` keyword",
         )?;
         let body = self.expect_statement_list()?;
+        self.expect_last_statement_is_expr(&body)?;
         let if_branch = Box::new(IfBranch { condition, body });
 
         let mut elif_branches = Vec::new();
@@ -563,6 +590,7 @@ impl TokenIter {
                         "`elif` condition must be followed with `then` keyword",
                     )?;
                     let body = self.expect_statement_list()?;
+                    self.expect_last_statement_is_expr(&body)?;
                     elif_branches.push(IfBranch { condition, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
@@ -571,7 +599,7 @@ impl TokenIter {
                         self.line(),
                         token.to_owned(),
                         [Keyword::Elif, Keyword::Else],
-                        // reason omitted
+                        "`if` expressions must include an `else` branch",
                     ));
                 }
             }
@@ -581,6 +609,7 @@ impl TokenIter {
             Token::Keyword(Keyword::Else) => {
                 self.next();
                 let body = self.expect_statement_list()?;
+                self.expect_last_statement_is_expr(&body)?;
                 body
             }
             token => {
@@ -689,6 +718,7 @@ impl TokenIter {
                         "`case` pattern must be followed with `then` keyword",
                     )?;
                     let body = self.expect_statement_list()?;
+                    self.expect_last_statement_is_expr(&body)?;
                     case_branches.push(MatchBranch { pattern, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
@@ -697,7 +727,7 @@ impl TokenIter {
                         self.line(),
                         token.to_owned(),
                         [Keyword::Case, Keyword::Else],
-                        // reason omitted
+                        "`match` expressions must include an `else` branch",
                     ));
                 }
             }
@@ -707,6 +737,7 @@ impl TokenIter {
             Token::Keyword(Keyword::Else) => {
                 self.next();
                 let body = self.expect_statement_list()?;
+                self.expect_last_statement_is_expr(&body)?;
                 body
             }
             token => {
