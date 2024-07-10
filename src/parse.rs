@@ -44,10 +44,17 @@ struct Func {
 
 type Ident = String;
 
+//TODO: Get better names for struct fields :)
 #[derive(Debug, PartialEq)]
-struct IdentPath {
-    parents: Vec<Ident>,
-    name: Ident,
+struct LValue {
+    origin: Ident,
+    parts: Vec<LValuePart>,
+}
+
+#[derive(Debug, PartialEq)]
+enum LValuePart {
+    Ident(Ident),
+    Subscript(Expr),
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -71,15 +78,15 @@ struct Let {
 
 #[derive(Debug, PartialEq)]
 struct Assign {
-    name: Ident,
+    lvalue: LValue,
     value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
 enum Expr {
     Literal(Literal),
-    IdentPath(IdentPath),
-    Call(IdentPath, CallParams),
+    LValue(LValue),
+    Call(LValue, CallParams),
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     If(IfExpr),
@@ -261,8 +268,14 @@ impl TokenIter {
                 Token::Keyword(Keyword::Match) => self.expect_match_statement()?,
 
                 token => {
-                    println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
-                    self.expect_expr_statement()?
+                    let token = token.to_owned();
+                    match self.try_parse_assign() {
+                        Some(statement) => statement?,
+                        None => {
+                            println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
+                            self.expect_expr_statement()?
+                        }
+                    }
                 }
             };
 
@@ -562,7 +575,7 @@ impl TokenIter {
             Token::Ident(ident) => {
                 //TODO: Save index
                 let ident = ident.to_owned();
-                let ident_path = self.expect_ident_path(ident)?;
+                let lvalue = self.expect_lvalue(ident)?;
 
                 match self.peek() {
                     Token::Keyword(Keyword::ParenLeft) => {
@@ -601,11 +614,11 @@ impl TokenIter {
                             }
                         }
 
-                        return Ok(Expr::Call(ident_path, params));
+                        return Ok(Expr::Call(lvalue, params));
                     }
 
                     _ => {
-                        return Ok(Expr::IdentPath(ident_path));
+                        return Ok(Expr::LValue(lvalue));
                     }
                 }
             }
@@ -685,40 +698,63 @@ impl TokenIter {
         }
     }
 
-    fn expect_ident_path(&mut self, ident: Ident) -> Result<IdentPath, ParseError> {
-        let mut path = vec![ident];
+    fn expect_lvalue(&mut self, origin: Ident) -> Result<LValue, ParseError> {
+        let mut parts = Vec::new();
 
         loop {
-            match self.peek() {
+            let part = match self.peek() {
                 Token::Keyword(Keyword::Dot) => {
                     self.next();
                     match self.next() {
-                        Token::Ident(ident) => {
-                            path.push(ident.to_owned());
-                        }
+                        Token::Ident(ident) => LValuePart::Ident(ident.to_owned()),
                         token => {
                             return Err(unexpected!(token, "identifier name"));
                         }
                     }
                 }
 
+                Token::Keyword(Keyword::BracketLeft) => {
+                    self.next();
+                    let expr = self.expect_expr()?;
+                    self.expect_keyword(Keyword::BracketRight)?;
+                    LValuePart::Subscript(expr)
+                }
+
                 _ => break,
-            }
+            };
+            parts.push(part);
         }
 
-        let path = if path.len() > 1 {
-            let name = path.pop().unwrap();
-            IdentPath {
-                parents: path,
-                name,
-            }
-        } else {
-            IdentPath {
-                parents: Vec::new(),
-                name: path.pop().unwrap(),
+        Ok(LValue { origin, parts })
+    }
+
+    //TODO: Refactor this ideally. it is not very nice
+    fn try_parse_assign(&mut self) -> Option<Result<Statement, ParseError>> {
+        let index = self.get_index();
+
+        let origin = match self.next() {
+            Token::Ident(ident) => ident.to_owned(),
+
+            _ => {
+                self.set_index(index);
+                return None;
             }
         };
 
-        Ok(path)
+        let Ok(lvalue) = self.expect_lvalue(origin) else {
+            self.set_index(index);
+            return None;
+        };
+
+        if let Err(err) = self.expect_keyword(Keyword::SingleEqual) {
+            return Some(Err(err));
+        };
+
+        let value = match self.expect_expr() {
+            Ok(expr) => expr,
+            Err(err) => return Some(Err(err)),
+        };
+
+        Some(Ok(Statement::Assign(Assign { lvalue, value })))
     }
 }

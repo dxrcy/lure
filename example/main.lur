@@ -58,6 +58,13 @@ let y = if x > 3
     else 6
 end
 
+# LValues
+a
+a.b.c
+a[0]
+a.b[0]
+a[0].b
+
 let s = "abc"
 log(s)
 let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
