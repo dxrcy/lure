@@ -202,10 +202,28 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                         '\\' | '"' | '\'' => string.push(ch),
                         'r' => string.push('\r'),
                         'n' => string.push('\n'),
+                        'x' => {
+                            let mut hex = String::new();
+                            for _ in 0..2 {
+                                let Some(ch) = chars.next() else {
+                                    return Err(ParseError {
+                                        line,
+                                        error: ParseErrorKind::InvalidEscapeSequence {
+                                            found: format!("x{}", hex),
+                                        },
+                                    });
+                                };
+                                hex.push(ch);
+                            }
+                            let hex: u8 = u8::from_str_radix(&hex, 16).unwrap();
+                            string.push(hex as char);
+                        }
                         _ => {
                             return Err(ParseError {
                                 line,
-                                error: ParseErrorKind::InvalidEscapeChar { found: ch },
+                                error: ParseErrorKind::InvalidEscapeSequence {
+                                    found: ch.to_string(),
+                                },
                             })
                         }
                     }

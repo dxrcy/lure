@@ -22,8 +22,8 @@ pub enum ParseErrorKind {
     UnclosedString {
         found: String,
     },
-    InvalidEscapeChar {
-        found: char,
+    InvalidEscapeSequence {
+        found: String,
     },
     CharLiteralNotSingleChar {
         found: String,
@@ -126,7 +126,7 @@ impl Display for ParseError {
                 )
             }
 
-            ParseErrorKind::InvalidEscapeChar { found } => {
+            ParseErrorKind::InvalidEscapeSequence { found } => {
                 write!(
                     f,
                     "Invalid escape character `{}` on line {}.",
