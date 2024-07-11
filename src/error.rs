@@ -102,7 +102,7 @@ impl Display for ParseError {
             ParseErrorKind::NumberSuffix { found } => {
                 write!(
                     f,
-                    "Number literal suffixes are not supported. Found `{}` on line {}.",
+                    "Number literal suffixes are not supported. Unexpected `{}` on line {}.",
                     found,
                     self.line + 1
                 )

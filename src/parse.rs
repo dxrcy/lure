@@ -12,7 +12,7 @@ pub struct SourceModule {
 #[derive(Debug, PartialEq)]
 struct Module {
     name: ModuleName,
-    statements: StatementList,
+    body: StatementList,
 }
 
 type ModuleName = String;
@@ -244,7 +244,7 @@ impl Ord for BinaryOp {
 pub fn parse_source_module(tokens: Vec<TokenRef>) -> Result<SourceModule, ParseError> {
     let mut tokens = TokenIter::from(tokens);
 
-    let module = tokens.expect_statement_list()?;
+    let module = tokens.expect_body()?;
 
     // Does this need to be here ?
     tokens.expect_eof()?;
@@ -285,7 +285,7 @@ impl TokenIter {
         }
     }
 
-    fn expect_statement_list(&mut self) -> Result<StatementList, ParseError> {
+    fn expect_body(&mut self) -> Result<StatementList, ParseError> {
         let mut statements = Vec::new();
 
         loop {
@@ -316,6 +316,17 @@ impl TokenIter {
                 Token::Keyword(Keyword::If) => self.expect_if_statement()?,
                 Token::Keyword(Keyword::For) => self.expect_for_statement()?,
                 Token::Keyword(Keyword::While) => self.expect_while_statement()?,
+                Token::Keyword(Keyword::Module) => self.expect_module_statement()?,
+
+                //TODO
+                Token::Keyword(Keyword::Template) => {
+                    return Err(unexpected!(
+                        self.line(),
+                        Keyword::Template,
+                        ["statement"],
+                        "Templates are not yet implemented"
+                    ))
+                }
 
                 token => {
                     let token = token.to_owned();
@@ -336,15 +347,39 @@ impl TokenIter {
     }
 
     fn expect_let_statement(&mut self) -> Result<Statement, ParseError> {
-        self.expect_keyword(Keyword::Let)?;
+        self.expect_keyword(
+            Keyword::Let,
+            // reason omitted
+        )?;
 
         let name = self.expect_ident()?;
 
-        self.expect_keyword(Keyword::SingleEqual)?;
+        self.expect_keyword_reason(
+            Keyword::SingleEqual,
+            "`let` declaration must include `=` to instantiate variable",
+        )?;
 
         let value = self.expect_expr()?;
 
         Ok(Statement::Let(Let { name, value }))
+    }
+
+    fn expect_module_statement(&mut self) -> Result<Statement, ParseError> {
+        self.expect_keyword(
+            Keyword::Module,
+            // reason omitted
+        )?;
+
+        let name = self.expect_ident()?;
+
+        let body = self.expect_body()?;
+
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
+
+        Ok(Statement::Module(Module { name, body }))
     }
 
     fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
@@ -406,7 +441,7 @@ impl TokenIter {
             }
         }
 
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
 
         self.expect_keyword(Keyword::End)?;
 
@@ -470,7 +505,7 @@ impl TokenIter {
             }
         }
 
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
 
         self.expect_keyword(Keyword::End)?;
 
@@ -489,7 +524,7 @@ impl TokenIter {
             Keyword::Then,
             "`if` condition must be followed with `then` keyword",
         )?;
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
         let if_branch = Box::new(IfBranch { condition, body });
 
         let mut elif_branches = Vec::new();
@@ -502,7 +537,7 @@ impl TokenIter {
                         Keyword::Then,
                         "`elif` condition must be followed with `then` keyword",
                     )?;
-                    let body = self.expect_statement_list()?;
+                    let body = self.expect_body()?;
                     elif_branches.push(IfBranch { condition, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
@@ -521,7 +556,7 @@ impl TokenIter {
         let else_branch = match self.peek() {
             Token::Keyword(Keyword::Else) => {
                 self.next();
-                let body = self.expect_statement_list()?;
+                let body = self.expect_body()?;
                 Some(body)
             }
             Token::Keyword(Keyword::End) => None,
@@ -576,7 +611,7 @@ impl TokenIter {
             Keyword::Then,
             "`if` condition must be followed with `then` keyword",
         )?;
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
         self.expect_last_statement_is_expr(&body)?;
         let if_branch = Box::new(IfBranch { condition, body });
 
@@ -590,7 +625,7 @@ impl TokenIter {
                         Keyword::Then,
                         "`elif` condition must be followed with `then` keyword",
                     )?;
-                    let body = self.expect_statement_list()?;
+                    let body = self.expect_body()?;
                     self.expect_last_statement_is_expr(&body)?;
                     elif_branches.push(IfBranch { condition, body });
                 }
@@ -609,7 +644,7 @@ impl TokenIter {
         let else_branch = match self.peek() {
             Token::Keyword(Keyword::Else) => {
                 self.next();
-                let body = self.expect_statement_list()?;
+                let body = self.expect_body()?;
                 self.expect_last_statement_is_expr(&body)?;
                 body
             }
@@ -674,7 +709,7 @@ impl TokenIter {
             }
         };
 
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
 
         self.expect_keyword_reason(Keyword::End, "`for` statement must end with `end` keyword")?;
 
@@ -700,7 +735,7 @@ impl TokenIter {
             "`while` statement must include `do` keyword following condition expression",
         )?;
 
-        let body = self.expect_statement_list()?;
+        let body = self.expect_body()?;
 
         self.expect_keyword_reason(
             Keyword::End,

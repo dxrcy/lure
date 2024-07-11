@@ -1,6 +1,11 @@
 # ok
 func main()
     # return 123
-    123ab
+end
+
+module main
+    func bruh()
+        print("what")
+    end
 end
 
