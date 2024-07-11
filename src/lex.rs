@@ -1,7 +1,5 @@
-use crate::PeekMore;
+use crate::{ParseError, ParseErrorKind, PeekMore};
 use std::{fmt, fmt::Display};
-
-pub type LexError = String;
 
 //TODO: Change name
 #[derive(Debug)]
@@ -138,7 +136,7 @@ impl From<Keyword> for Token {
     }
 }
 
-pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
+pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
     let mut tokens: Vec<TokenRef> = Vec::new();
 
     let mut chars = PeekMore::from(file.chars());
@@ -153,7 +151,10 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
             continue;
         }
         if !is_valid_char(ch) {
-            return Err(format!("Invalid character: 0x{:02x}", ch as u8));
+            return Err(ParseError {
+                line,
+                error: ParseErrorKind::InvalidChar { found: ch },
+            });
         }
         if ch.is_whitespace() {
             continue;
@@ -215,6 +216,8 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
                 chars.next();
                 number.push(ch);
             }
+            // If this fails, that means this lexing function is broken, not the
+            // user's code
             let number: f64 = number.parse().expect("Number should be valid");
             tokens.push(TokenRef {
                 token: Token::Literal(Literal::Number(number)),
@@ -245,7 +248,10 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, LexError> {
                     "false" => Token::Literal(Literal::Bool(false)),
                     "nil" => Token::Literal(Literal::Nil),
                     _ if ident_is_punct => {
-                        return Err(format!("Unexpected punctuation: `{}`", ident));
+                        return Err(ParseError {
+                            line,
+                            error: ParseErrorKind::InvalidPunct { found: ident },
+                        });
                     }
                     _ => Token::Ident(ident),
                 },

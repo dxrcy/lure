@@ -1,58 +1,7 @@
-use std::fmt::{self, Display};
-
 use crate::{
     lex::{Keyword, Literal, Token, TokenRef},
-    TokenIter,
+    ParseError, ParseErrorKind, TokenIter,
 };
-
-//TODO: Add line numbers
-#[derive(Debug)]
-pub struct ParseError {
-    pub error: ParseErrorKind,
-    pub line: usize,
-}
-
-#[derive(Debug)]
-pub enum ParseErrorKind {
-    Unexpected {
-        found: Token,
-        expected: String,
-        reason: Option<&'static str>,
-    },
-    MissingFinalExpression,
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.error {
-            ParseErrorKind::Unexpected {
-                found,
-                expected,
-                reason,
-            } => {
-                write!(
-                    f,
-                    "Unexpected {} on line {}. Expected {}.",
-                    found,
-                    self.line + 1,
-                    expected
-                )?;
-                if let Some(reason) = reason {
-                    write!(f, "\n{}.", reason)?;
-                }
-                Ok(())
-            }
-
-            ParseErrorKind::MissingFinalExpression => {
-                write!(
-                    f,
-                    "If expression branch does not end with expression, on line {}.",
-                    self.line + 1
-                )
-            }
-        }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct SourceModule {

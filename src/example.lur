@@ -3,6 +3,5 @@ func main()
     let a = func()
         print(123)
     end
-    a()
 end
 
