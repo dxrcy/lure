@@ -77,7 +77,6 @@ enum Statement {
     Let(Let),
     Assign(Assign),
     If(IfStatement),
-    Match(MatchStatement),
     While(While),
     For(For),
     #[allow(dead_code)]
@@ -147,7 +146,6 @@ enum Expr {
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     If(IfExpr),
-    Match(MatchExpr),
     Table(Table),
     Func(FuncExpr),
 }
@@ -193,29 +191,6 @@ struct IfExpr {
 #[derive(Debug, PartialEq)]
 struct IfBranch {
     condition: Expr,
-    body: StatementList,
-}
-
-#[derive(Debug, PartialEq)]
-struct MatchStatement {
-    target: Box<Expr>,
-    case_branches: Vec<MatchBranch>,
-    else_branch: Option<StatementList>,
-}
-
-#[derive(Debug, PartialEq)]
-struct MatchExpr {
-    target: Box<Expr>,
-    case_branches: Vec<MatchBranch>,
-    else_branch: StatementList,
-}
-
-#[derive(Debug, PartialEq)]
-struct MatchBranch {
-    //TODO: Restrict expressions
-    // remember: don't bind matched keys to variables !!
-    pattern: Expr,
-    //TODO: Add if guards
     body: StatementList,
 }
 
@@ -390,7 +365,6 @@ impl TokenIter {
                 Token::Keyword(Keyword::Let) => self.expect_let_statement()?,
                 Token::Keyword(Keyword::Func) => self.expect_func_statement()?,
                 Token::Keyword(Keyword::If) => self.expect_if_statement()?,
-                Token::Keyword(Keyword::Match) => self.expect_match_statement()?,
                 Token::Keyword(Keyword::For) => self.expect_for_statement()?,
                 Token::Keyword(Keyword::While) => self.expect_while_statement()?,
 
@@ -709,134 +683,6 @@ impl TokenIter {
         }))
     }
 
-    fn expect_match_statement(&mut self) -> Result<Statement, ParseError> {
-        // Reduntant
-        self.expect_keyword(
-            Keyword::Match,
-            // reason omitted
-        )?;
-
-        let target = Box::new(self.expect_expr()?);
-
-        let mut case_branches = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Keyword(Keyword::Case) => {
-                    self.next();
-                    let pattern = self.expect_expr()?;
-                    self.expect_keyword_reason(
-                        Keyword::Then,
-                        "`case` pattern must be followed with `then` keyword",
-                    )?;
-                    let body = self.expect_statement_list()?;
-                    case_branches.push(MatchBranch { pattern, body });
-                }
-                Token::Keyword(Keyword::Else) => break,
-                Token::Keyword(Keyword::End) => break,
-                token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        [Keyword::Case, Keyword::Else, Keyword::End],
-                        "`match` statement must end with `end` keyword",
-                    ));
-                }
-            }
-        }
-
-        let else_branch = match self.peek() {
-            Token::Keyword(Keyword::Else) => {
-                self.next();
-                let body = self.expect_statement_list()?;
-                Some(body)
-            }
-            Token::Keyword(Keyword::End) => None,
-            token => {
-                return Err(unexpected!(
-                    self.line(),
-                    token.to_owned(),
-                    [Keyword::Else, Keyword::End],
-                    "`match` statement must end with `end` keyword",
-                ));
-            }
-        };
-
-        self.expect_keyword_reason(
-            Keyword::End,
-            "`match` statement must end with `end` keyword",
-        )?;
-
-        Ok(Statement::Match(MatchStatement {
-            target,
-            case_branches,
-            else_branch,
-        }))
-    }
-
-    fn expect_match_expr(&mut self) -> Result<Expr, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::Match,
-            // reason omitted
-        )?;
-
-        let target = Box::new(self.expect_expr()?);
-
-        let mut case_branches = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Keyword(Keyword::Case) => {
-                    self.next();
-                    let pattern = self.expect_expr()?;
-                    self.expect_keyword_reason(
-                        Keyword::Then,
-                        "`case` pattern must be followed with `then` keyword",
-                    )?;
-                    let body = self.expect_statement_list()?;
-                    self.expect_last_statement_is_expr(&body)?;
-                    case_branches.push(MatchBranch { pattern, body });
-                }
-                Token::Keyword(Keyword::Else) => break,
-                token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        [Keyword::Case, Keyword::Else],
-                        "`match` expressions must include an `else` branch",
-                    ));
-                }
-            }
-        }
-
-        let else_branch = match self.peek() {
-            Token::Keyword(Keyword::Else) => {
-                self.next();
-                let body = self.expect_statement_list()?;
-                self.expect_last_statement_is_expr(&body)?;
-                body
-            }
-            token => {
-                return Err(unexpected!(
-                    self.line(),
-                    token.to_owned(),
-                    [Keyword::Else],
-                    "`match` expressions must include an `else` branch",
-                ))
-            }
-        };
-
-        self.expect_keyword_reason(
-            Keyword::End,
-            "`match` expression must end with `end` keyword",
-        )?;
-
-        Ok(Expr::Match(MatchExpr {
-            target,
-            case_branches,
-            else_branch,
-        }))
-    }
-
     fn expect_for_statement(&mut self) -> Result<Statement, ParseError> {
         // Redundant
         self.expect_keyword(
@@ -1122,11 +968,6 @@ impl TokenIter {
                 // anybody.
                 self.reverse(1);
                 return self.expect_if_expr();
-            }
-
-            Token::Keyword(Keyword::Match) => {
-                self.reverse(1);
-                return self.expect_match_expr();
             }
 
             Token::Keyword(Keyword::Func) => {

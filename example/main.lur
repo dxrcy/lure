@@ -8,7 +8,7 @@
 # - another module
 # - variable declaration
 # - assignment operation
-# - loop / conditional / match
+# - loop / conditional
 # - expression (incl. function call)
 
 # NO statements/functions are hoisted
@@ -204,48 +204,25 @@ assert(b[0, 1], nil)
 # Spread operator
 let jane = { name = "Jane", ..john }
 
-# Match (switch) statements
-# Case can be any expression which will be compared with `std.compare`
+# Match/switch statements are not supported
 let x = 3
 # As a statement
-match x
-    case 4 then
-        println("4")
-    case 5 then
-        println("5")
-        println("it is five")
-    else
-        println("default")
+if x == 4 then
+    println("4")
+elif x == 5 then
+    println("5")
+    println("it is five")
+else
+    println("default")
 end
 
-# Similar to `if` as an expression (ideally)
-let y = match x
-    case 4 then "4"
-    case 5 then "5"
-    else "default"
-end
-
-# Match guards
-let foo = 9
-let y = match x
-    case 4 if foo == 9 then
-        "4 and foo == 9"
-    case 4 then
-        "4 but foo != 9"
-    case 5 then
-        "5"
-    else
-        "default"
-end
-
-# Matching a table
-match john
-    case { name = "John", .. } then
-        println("Hello John")
-    # Cannot bind keys to variables!
-    else
-        john.name # Access like this! not with pattern matching!
-        println("Who are you")
+# Comparing to a table
+# Must check each key individually
+if john.name == "John" then
+    println("Hello John")
+else
+    john.name
+    println("Who are you")
 end
 
 

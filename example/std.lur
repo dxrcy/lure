@@ -70,8 +70,7 @@ module util
         let arg_index = 0
 
         for i in 0 to len(fmt) do
-            match fmt[i]
-            case '{' then
+            if fmt[i] == '{' then
                 i = i + 1
                 if i >= len(fmt) then
                     return { err = "Unexpected end of format string. Expected `}}`" }
@@ -86,7 +85,7 @@ module util
                 end
                 output = output & to_string(args[arg_index])
                 arg_index = arg_index + 1
-            case '}' then
+            elif fmt[i] == '}' then
                 i = i + 1
                 if fmt[i] == '}' then
                     output = output & '}'
@@ -232,7 +231,7 @@ module io
             return io._result_from(err_code)
         end
 
-        # RENAME to match with `read_line` !!!
+        # RENAME to be consistent with `read_line` !!!
         ## Write formatted arguments to file, with a newline.
         #: (File), string, ..any -> { err = Error } | { ok = nil }
         func write_line(self, fmt, ..args)
@@ -243,11 +242,14 @@ module io
     ## Convert an IO error code to an Error
     #: int, a -> { err = Error } | { ok = a }
     func _result_from(code, ok)
-        let message = match code
-            case 0 then return { ok = ok }
-            case 1 then "Not found"
-            # ...
-            else "Unknown error"
+        let message =
+        if code == 0 then
+            return { ok = ok }
+        elif code == 1
+            then "Not found"
+        # elif ...
+        else
+            "Unknown error"
         end
         return {
             err = as Error {

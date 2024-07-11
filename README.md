@@ -31,12 +31,10 @@ continue
 return
 and
 or
-nil       # Use `null` instead ?
+nil
 true
 false
 as        # ??? 
-match
-case
 self      # Maybe it wont be a keyword ??
 ```
 

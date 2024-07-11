@@ -38,6 +38,9 @@ let stdin = 1
 #: int
 let stderr = 2
 
+# MATCH STATEMENTS ARE USED <HERE> BECAUSE THIS WILL ALL BE WRITTEN IN RUST
+# ANYWAY!! BUT THEY ARE NOT ACTUALLY VALID IN THIS LANGUAGE!!
+
 #: any -> int
 func len(arg)
     # Something like:

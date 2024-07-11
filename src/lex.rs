@@ -73,7 +73,6 @@ make_keyword! {
     "then" => Then,
     "while" => While,
     "for" => For,
-    "match" => Match,
     "case" => Case,
     "in" => In,
     "to" => To,
