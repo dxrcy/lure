@@ -216,6 +216,23 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                 chars.next();
                 number.push(ch);
             }
+            if chars
+                .peek()
+                .is_some_and(|ch| !ch.is_ascii_digit() && !is_punct(ch))
+            {
+                chars.next();
+                let mut found = number;
+                while let Some(ch) = chars
+                    .next()
+                    .filter(|ch| !is_punct(*ch))
+                {
+                    found.push(ch);
+                }
+                return Err(ParseError {
+                    line,
+                    error: ParseErrorKind::NumberSuffix { found },
+                });
+            }
             // If this fails, that means this lexing function is broken, not the
             // user's code
             let number: f64 = number.parse().expect("Number should be valid");

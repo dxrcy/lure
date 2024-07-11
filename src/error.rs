@@ -16,6 +16,9 @@ pub enum ParseErrorKind {
     InvalidPunct {
         found: String,
     },
+    NumberSuffix {
+        found: String,
+    },
     Unexpected {
         found: Token,
         expected: String,
@@ -94,6 +97,15 @@ impl Display for ParseError {
                     write!(f, "\n{}.", reason)?;
                 }
                 Ok(())
+            }
+
+            ParseErrorKind::NumberSuffix { found } => {
+                write!(
+                    f,
+                    "Number literal suffixes are not supported. Found `{}` on line {}.",
+                    found,
+                    self.line + 1
+                )
             }
 
             ParseErrorKind::Unexpected {
