@@ -66,10 +66,10 @@ impl Display for ParseError {
                 const COMMENT: &str = "Use `#` to declare a comment";
                 const ARITH_ASSIGN: &str = "Arithmetic assignment operations are not supported";
                 const CONCAT: &str = "Use `&` to concatenate values";
+                const EQ: &str = "Use `==` for a equal comparison";
                 const NEQ: &str = "Use `!=` for a not-equal comparison";
                 const MEMBER: &str = "Use `.` to access a member of a value";
                 const TABLE_KEY: &str = "Use `:` to declare a table value with a key";
-                const BIT_SHIFT: &str = "Bit-shift operations are not supported";
                 const TERNARY: &str = "Use an `if-else` block as a ternary expression";
 
                 let reasons: &[&str] = match found.as_str() {
@@ -84,16 +84,16 @@ impl Display for ParseError {
                     "++" => &[CONCAT, INC_DEC],
                     "--" => &[COMMENT, INC_DEC],
                     "//" => &[COMMENT],
+                    "===" => &[EQ],
                     "~=" => &[NEQ],
                     "/=" => &[NEQ, ARITH_ASSIGN],
                     "+=" | "-=" | "*=" | "%=" => &[ARITH_ASSIGN],
                     "**=" => &[ARITH_ASSIGN, EXPONENT],
-                    "&=" | "|=" | "^=" => &[BITWISE, ARITH_ASSIGN],
-                    "<<=" | ">>=" => &[BIT_SHIFT, ARITH_ASSIGN],
+                    "&=" | "|=" | "^=" | "<<=" | ">>=" => &[BITWISE, ARITH_ASSIGN],
                     ":" => &[MEMBER, TABLE_KEY],
                     "::" => &[MEMBER],
                     "?" => &[TERNARY],
-                    "<<" | ">>" | "<<<" | ">>>" => &[BIT_SHIFT],
+                    "<<" | ">>" | "<<<" | ">>>" => &[BITWISE],
                     "`" => &[
                         "Use \"...\" for string literals",
                         "Use `std.format` for string interpolation",
