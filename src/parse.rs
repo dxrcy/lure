@@ -928,6 +928,12 @@ impl TokenIter {
                 let mut table = Table::default();
                 let mut implicit_key = 0;
 
+                // Empty table
+                if self.peek() == &Token::Keyword(Keyword::BraceRight) {
+                    self.next();
+                    return Ok(Expr::Table(table));
+                }
+
                 loop {
                     let index = self.get_index();
 
