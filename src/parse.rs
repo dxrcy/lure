@@ -60,7 +60,8 @@ struct LValue {
 #[derive(Debug, PartialEq)]
 enum LValuePart {
     Ident(Ident),
-    Subscript(Expr),
+    Index(Expr),
+    Slice(Expr, Expr),
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -1106,12 +1107,24 @@ impl TokenIter {
 
                 Token::Keyword(Keyword::BracketLeft) => {
                     self.next();
-                    let expr = self.expect_expr()?;
+
+                    let start = self.expect_expr()?;
+                    let mut end = None;
+
+                    if self.peek() == &Token::Keyword(Keyword::Comma) {
+                        self.next();
+                        end = Some(self.expect_expr()?);
+                    }
+
                     self.expect_keyword_reason(
                         Keyword::BracketRight,
                         "Subscript must be delimited by `]`",
                     )?;
-                    LValuePart::Subscript(expr)
+
+                    match end {
+                        None => LValuePart::Index(start),
+                        Some(end) => LValuePart::Slice(start, end),
+                    }
                 }
 
                 _ => break,
