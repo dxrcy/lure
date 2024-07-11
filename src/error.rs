@@ -19,6 +19,15 @@ pub enum ParseErrorKind {
     NumberSuffix {
         found: String,
     },
+    UnclosedString {
+        found: String,
+    },
+    InvalidEscapeChar {
+        found: char,
+    },
+    CharLiteralNotSingleChar {
+        found: String,
+    },
     Unexpected {
         found: Token,
         expected: String,
@@ -108,6 +117,33 @@ impl Display for ParseError {
                 )
             }
 
+            ParseErrorKind::UnclosedString { found } => {
+                write!(
+                    f,
+                    "Unclosed string literal {:?} on line {}.",
+                    found,
+                    self.line + 1
+                )
+            }
+
+            ParseErrorKind::InvalidEscapeChar { found } => {
+                write!(
+                    f,
+                    "Invalid escape character `{}` on line {}.",
+                    found,
+                    self.line + 1
+                )
+            }
+
+            ParseErrorKind::CharLiteralNotSingleChar { found } => {
+                write!(
+                    f,
+                    "Character literal must be a single character. Found '{}' on line {}.",
+                    debug_format_no_quotes(found),
+                    self.line + 1
+                )
+            }
+
             ParseErrorKind::Unexpected {
                 found,
                 expected,
@@ -135,4 +171,12 @@ impl Display for ParseError {
             }
         }
     }
+}
+
+fn debug_format_no_quotes(string: &str) -> String {
+    let debug = format!("{:?}", string);
+    let mut chars = debug.chars();
+    chars.next();
+    chars.next_back();
+    chars.as_str().to_string()
 }

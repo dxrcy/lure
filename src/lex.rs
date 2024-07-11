@@ -174,20 +174,50 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                 line,
             });
         } else if ch == '"' || ch == '\'' {
-            let quote = ch;
-            let is_char = quote == '\'';
+            let quote_ch = ch;
+            let is_char = quote_ch == '\'';
             let mut string = String::new();
-            for ch in chars.by_ref() {
+            loop {
+                let Some(ch) = chars.next() else {
+                    return Err(ParseError {
+                        line,
+                        error: ParseErrorKind::UnclosedString { found: string },
+                    });
+                };
                 if ch == '\n' {
                     line += 1;
                 }
-                if ch == '"' {
+                if ch == quote_ch {
                     break;
                 }
-                string.push(ch);
-                if is_char {
-                    break;
-                }
+                // Escaped char
+                if ch == '\\' {
+                    let Some(ch) = chars.next() else {
+                        return Err(ParseError {
+                            line,
+                            error: ParseErrorKind::UnclosedString { found: string },
+                        });
+                    };
+                    match ch {
+                        '\\' | '"' | '\'' => string.push(ch),
+                        'r' => string.push('\r'),
+                        'n' => string.push('\n'),
+                        _ => {
+                            return Err(ParseError {
+                                line,
+                                error: ParseErrorKind::InvalidEscapeChar { found: ch },
+                            })
+                        }
+                    }
+                } else {
+                    string.push(ch);
+                };
+            }
+            if is_char && string.len() != 1 {
+                return Err(ParseError {
+                    line,
+                    error: ParseErrorKind::CharLiteralNotSingleChar { found: string },
+                });
             }
             tokens.push(TokenRef {
                 token: Token::Literal(Literal::String(string)),
