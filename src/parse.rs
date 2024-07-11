@@ -29,7 +29,7 @@ enum Statement {
     While(While),
     For(For),
     Module(Module),
-    Return(Expr),
+    Return(Return),
     Break,
     Continue,
     //TODO: Template
@@ -78,8 +78,13 @@ struct CallParams {
 
 #[derive(Debug, PartialEq)]
 struct Let {
-    name: Ident,
+    names: Plural<Ident>,
     value: Expr,
+}
+
+#[derive(Debug, PartialEq)]
+struct Return {
+    values: Plural<Expr>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -174,10 +179,19 @@ struct TableItem {
     key: Literal,
     value: Box<Expr>,
 }
-// enum TableItem {
-//     Positional(usize, Box<Expr>),
-//     Named(Literal, Box<Expr>),
-// }
+
+// >=1 items
+#[derive(Debug, PartialEq)]
+struct Plural<T> {
+    first: T,
+    rest: Vec<T>,
+}
+
+impl<T> Plural<T> {
+    pub fn from(first: T, rest: Vec<T>) -> Self {
+        Self { first, rest }
+    }
+}
 
 macro_rules! unexpected {
     (
@@ -338,11 +352,7 @@ impl TokenIter {
                     self.next();
                     Statement::Continue
                 }
-                Token::Keyword(Keyword::Return) => {
-                    self.next();
-                    let expr = self.expect_expr()?;
-                    Statement::Return(expr)
-                }
+                Token::Keyword(Keyword::Return) => self.expect_return_statement()?,
 
                 token => {
                     let token = token.to_owned();
@@ -362,13 +372,54 @@ impl TokenIter {
         Ok(statements)
     }
 
+    fn expect_return_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
+        self.expect_keyword(
+            Keyword::Return,
+            // reason omitted
+        )?;
+
+        let value_first = self.expect_expr()?;
+
+        let mut value_rest = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::Comma) => {
+                    self.next();
+                }
+                _ => break,
+            }
+            let value = self.expect_expr()?;
+            value_rest.push(value);
+        }
+
+        let values = Plural::from(value_first, value_rest);
+
+        Ok(Statement::Return(Return { values }))
+    }
+
     fn expect_let_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
         self.expect_keyword(
             Keyword::Let,
             // reason omitted
         )?;
 
-        let name = self.expect_ident()?;
+        let name_first = self.expect_ident()?;
+
+        let mut name_rest = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::Comma) => {
+                    self.next();
+                }
+                _ => break,
+            }
+            let name = self.expect_ident()?;
+            name_rest.push(name);
+        }
+
+        let names = Plural::from(name_first, name_rest);
 
         self.expect_keyword_reason(
             Keyword::SingleEqual,
@@ -377,7 +428,7 @@ impl TokenIter {
 
         let value = self.expect_expr()?;
 
-        Ok(Statement::Let(Let { name, value }))
+        Ok(Statement::Let(Let { names, value }))
     }
 
     fn expect_module_statement(&mut self) -> Result<Statement, ParseError> {
