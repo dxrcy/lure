@@ -28,8 +28,10 @@ enum Statement {
     If(IfStatement),
     While(While),
     For(For),
-    #[allow(dead_code)]
     Module(Module),
+    Return(Expr),
+    Break,
+    Continue,
     //TODO: Template
 }
 
@@ -326,6 +328,20 @@ impl TokenIter {
                         ["statement"],
                         "Templates are not yet implemented"
                     ))
+                }
+
+                Token::Keyword(Keyword::Break) => {
+                    self.next();
+                    Statement::Break
+                }
+                Token::Keyword(Keyword::Continue) => {
+                    self.next();
+                    Statement::Continue
+                }
+                Token::Keyword(Keyword::Return) => {
+                    self.next();
+                    let expr = self.expect_expr()?;
+                    Statement::Return(expr)
                 }
 
                 token => {
