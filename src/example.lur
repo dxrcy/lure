@@ -6,6 +6,9 @@ end
 module main
     func bruh()
         print("what")
+
+        let a = { }
+        
     end
 end
 

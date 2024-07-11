@@ -383,11 +383,17 @@ impl TokenIter {
     }
 
     fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
-        self.expect_keyword(Keyword::Func)?;
+        self.expect_keyword(
+            Keyword::Func,
+            // reason omitted
+        )?;
 
         let name = self.expect_ident()?;
 
-        self.expect_keyword(Keyword::ParenLeft)?;
+        self.expect_keyword_reason(
+            Keyword::ParenLeft,
+            "`func` statement must include parameter list between parentheses",
+        )?;
 
         let mut params = DeclareParams::default();
         loop {
@@ -443,15 +449,37 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
 
         Ok(Statement::Func(FuncStatement { name, params, body }))
     }
 
     fn expect_func_expr(&mut self) -> Result<Expr, ParseError> {
-        self.expect_keyword(Keyword::Func)?;
+        self.expect_keyword(
+            Keyword::Func,
+            // reason omitted
+        )?;
 
-        self.expect_keyword(Keyword::ParenLeft)?;
+        match self.next() {
+            Token::Keyword(Keyword::ParenLeft) => (),
+            token => {
+                let token = token.to_owned();
+                let reason = if matches!(token, Token::Ident(_)) {
+                    "`func` expression cannot be named"
+                } else {
+                    "`func` expression must include parameter list between parentheses"
+                };
+                return Err(unexpected!(
+                    self.line(),
+                    token,
+                    [Keyword::ParenLeft],
+                    reason
+                ));
+            }
+        }
 
         let mut params = DeclareParams::default();
         loop {
@@ -507,7 +535,10 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword(Keyword::End)?;
+        self.expect_keyword(
+            Keyword::End,
+            // reason omitted
+        )?;
 
         Ok(Expr::Func(FuncExpr { params, body }))
     }
@@ -816,7 +847,10 @@ impl TokenIter {
         match self.next() {
             Token::Keyword(Keyword::ParenLeft) => {
                 let expr = self.expect_expr()?;
-                self.expect_keyword(Keyword::ParenRight)?;
+                self.expect_keyword_reason(
+                    Keyword::ParenRight,
+                    "Unmatched parenthesis in expression group",
+                )?;
                 Ok(Expr::Group(Box::new(expr)))
             }
 
@@ -1034,6 +1068,7 @@ impl TokenIter {
             return None;
         };
 
+        // Just check it
         if self.expect_keyword(Keyword::SingleEqual).is_err() {
             self.set_index(index);
             return None;
