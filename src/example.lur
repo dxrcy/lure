@@ -1,9 +1,6 @@
 # ok
 func main()
-    let a = func()
-        print(123)
-    end
-    a != b
-920oaawwd1293
+    # return 123
+    123ab
 end
 

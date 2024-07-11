@@ -208,6 +208,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                     number.push(ch);
                 } else {
                     chars.back();
+                    chars.back();
                 }
             } else {
                 chars.back();
@@ -216,16 +217,13 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                 chars.next();
                 number.push(ch);
             }
+            chars.back();
             if chars
                 .peek()
                 .is_some_and(|ch| !ch.is_ascii_digit() && !is_punct(ch))
             {
-                chars.next();
                 let mut found = number;
-                while let Some(ch) = chars
-                    .next()
-                    .filter(|ch| !is_punct(*ch))
-                {
+                while let Some(ch) = chars.next().filter(|ch| !is_punct(*ch)) {
                     found.push(ch);
                 }
                 return Err(ParseError {
