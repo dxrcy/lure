@@ -43,12 +43,56 @@ impl Display for ParseError {
                     found,
                     self.line + 1,
                 )?;
-                let reason = match found.as_str() {
-                    "//" | "--" => "Use `#` to declare a comment",
-                    "~=" | "/=" => "Use `!=` for a not-equal comparison",
+
+                const BITWISE: &str = "Bitwise operations are not supported";
+                const NOT: &str = "Use `not` for a logical 'NOT' operation";
+                const LOG_OR: &str = "Use `or` for a logical 'OR' operation";
+                const LOG_AND: &str = "Use `and` for a logical 'AND' operation";
+                const LOG_XOR: &str = "Logical `XOR` operations are not supported";
+                const EXPONENT: &str = "Exponentiation operations are not supported";
+                const INC_DEC: &str = "Increment and decrement operations are not supported";
+                const COMMENT: &str = "Use `#` to declare a comment";
+                const ARITH_ASSIGN: &str = "Arithmetic assignment operations are not supported";
+                const CONCAT: &str = "Use `&` to concatenate values";
+                const NEQ: &str = "Use `!=` for a not-equal comparison";
+                const MEMBER: &str = "Use `.` to access a member of a value";
+                const TABLE_KEY: &str = "Use `:` to declare a table value with a key";
+                const BIT_SHIFT: &str = "Bit-shift operations are not supported";
+                const TERNARY: &str = "Use an `if-else` block as a ternary expression";
+
+                let reasons: &[&str] = match found.as_str() {
+                    ";" => &["Semicolons are not supported"],
+                    "!" => &[NOT],
+                    "~" => &[NOT, BITWISE],
+                    "&&" => &[LOG_AND],
+                    "||" => &[LOG_OR],
+                    "|" => &[LOG_OR, BITWISE],
+                    "^" => &[LOG_XOR, BITWISE, EXPONENT],
+                    "**" => &[EXPONENT],
+                    "++" => &[CONCAT, INC_DEC],
+                    "--" => &[COMMENT, INC_DEC],
+                    "//" => &[COMMENT],
+                    "~=" => &[NEQ],
+                    "/=" => &[NEQ, ARITH_ASSIGN],
+                    "+=" | "-=" | "*=" | "%=" => &[ARITH_ASSIGN],
+                    "**=" => &[ARITH_ASSIGN, EXPONENT],
+                    "&=" | "|=" | "^=" => &[BITWISE, ARITH_ASSIGN],
+                    "<<=" | ">>=" => &[BIT_SHIFT, ARITH_ASSIGN],
+                    ":" => &[MEMBER, TABLE_KEY],
+                    "::" => &[MEMBER],
+                    "?" => &[TERNARY],
+                    "<<" | ">>" | "<<<" | ">>>" => &[BIT_SHIFT],
+                    "`" => &[
+                        "Use \"...\" for string literals",
+                        "Use `std.format` for string interpolation",
+                    ],
+                    "$" => &["Identifiers must only contain characters [a-zA-Z0-9_@]"],
+                    "??" => &["Fallbacks for `nil` values are not supported"],
                     _ => return Ok(()),
                 };
-                write!(f, "\n{}.", reason)?;
+                for reason in reasons {
+                    write!(f, "\n{}.", reason)?;
+                }
                 Ok(())
             }
 
