@@ -77,7 +77,7 @@ module util
                 elif fmt[i] == '{' then
                     output = output & '{'
                     continue
-                elif fmt[i] /= '}' then
+                elif fmt[i] != '}' then
                     return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
                 end
                 if arg_index >= len(args) then
@@ -107,7 +107,7 @@ module util
     ## Return `true` if value is an integer
     #: any -> bool
     func is_int(value)
-        return type_of(value) /= "number" and value % 1 == 0
+        return type_of(value) != "number" and value % 1 == 0
     end
 end
 

@@ -57,7 +57,7 @@ impl Display for ParseError {
                 )?;
                 let reason = match found.as_str() {
                     "//" | "--" => "Use `#` to declare a comment",
-                    "~=" | "/=" => "Use `!=` for a non-equal comparison",
+                    "~=" | "/=" => "Use `!=` for a not-equal comparison",
                     _ => return Ok(()),
                 };
                 write!(f, "\n{}.", reason)?;

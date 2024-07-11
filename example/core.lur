@@ -48,7 +48,7 @@ func len(arg)
         case "char"   then return 1
         case "string" then todo() end
         case "table" then
-            if arg.@len /= nil
+            if arg.@len != nil
                 then return arg.@len()
                 else todo()
             end
@@ -71,7 +71,7 @@ func to_string(arg)
                 else return "false"
             end
         case "table" then
-            if arg.@to_string /= nil
+            if arg.@to_string != nil
                 then return arg.@to_string()
                 else todo() # Serialize each item like `{ abc = 123 }`
             end
@@ -87,7 +87,7 @@ func get(arg, index)
     match type_of(arg)
         case "string" then todo()
         case "table" then
-            if arg.@get /= nil
+            if arg.@get != nil
                 then return arg.@get(index)
                 else todo()
             end
@@ -101,7 +101,7 @@ func slice(arg, start, end)
     match type_of(arg)
         case "string" then todo()
         case "table" then
-            if arg.@slice /= nil
+            if arg.@slice != nil
                 then return arg.@slice(start, end)
                 else todo()
             end
@@ -115,7 +115,7 @@ func set(arg, index, value)
     match type_of(arg)
         case "string" then todo()
         case "table" then
-            if arg.@set /= nil
+            if arg.@set != nil
                 then return arg.@set(index, value)
                 else todo()
             end
@@ -129,7 +129,7 @@ func push(arg, value)
     match type_of(arg)
         case "string" then todo()
         case "table" then
-            if arg.@push /= nil
+            if arg.@push != nil
                 then return arg.@push(index, value)
                 else todo()
             end
@@ -153,7 +153,7 @@ func compare(arg, other)
         case { "char", "string" }   then todo() 
         case { "string", "char" }   then todo() 
         case { "table", "table" } then
-            if arg.@compare /= nil
+            if arg.@compare != nil
                 then return arg.@compare(other)
                 else todo() # 0 if same reference ?
             end

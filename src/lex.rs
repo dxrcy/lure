@@ -94,7 +94,7 @@ make_keyword! {
     "," => Comma,
     "." => Dot,
     "==" => DoubleEqual,
-    "/=" => NotEqual,
+    "!=" => NotEqual,
     "<" => LessThan,
     ">" => GreaterThan,
     "<=" => LessEqual,

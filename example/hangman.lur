@@ -84,14 +84,14 @@ end
 func read_file_lines(filename)
     let result = File.open(filename, "r")
     let file = result.ok
-    if result.err /= nil then
+    if result.err != nil then
         return nil
     end
 
     let lines = {}
     while true do
         let err, line = file.read_line()
-        if err /= nil then
+        if err != nil then
             return nil
         end
         if line == nil then
