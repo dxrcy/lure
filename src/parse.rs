@@ -29,10 +29,25 @@ enum Statement {
     While(While),
     For(For),
     Module(Module),
+    Template(Template),
     Return(Return),
     Break,
     Continue,
-    //TODO: Template
+}
+
+#[derive(Debug, PartialEq)]
+struct Template {
+    name: Ident,
+    items: Vec<TemplateItem>,
+}
+
+#[derive(Debug, PartialEq)]
+enum TemplateItem {
+    Key {
+        name: Ident,
+        default_value: Option<Expr>,
+    },
+    Func(FuncStatement),
 }
 
 #[derive(Debug, PartialEq)]
@@ -308,7 +323,7 @@ impl TokenIter {
         loop {
             let statement = match self.peek() {
                 Token::Eof => {
-                    println!("\x1b[31m(EOF) this is probably bad\x1b[0m");
+                    println!("\x1b[31m(EOF)\x1b[0m");
                     break;
                 }
                 Token::Keyword(Keyword::End) => {
@@ -334,16 +349,7 @@ impl TokenIter {
                 Token::Keyword(Keyword::For) => self.expect_for_statement()?,
                 Token::Keyword(Keyword::While) => self.expect_while_statement()?,
                 Token::Keyword(Keyword::Module) => self.expect_module_statement()?,
-
-                //TODO
-                Token::Keyword(Keyword::Template) => {
-                    return Err(unexpected!(
-                        self.line(),
-                        Keyword::Template,
-                        ["statement"],
-                        "Templates are not yet implemented"
-                    ))
-                }
+                Token::Keyword(Keyword::Template) => self.expect_template_statement()?,
 
                 Token::Keyword(Keyword::Break) => {
                     self.next();
@@ -372,6 +378,9 @@ impl TokenIter {
 
         Ok(statements)
     }
+
+    //TODO: Maybe have all of these return their actual type, not just
+    // `Statement`. Then wrap in statement after 'expecting'.
 
     fn expect_return_statement(&mut self) -> Result<Statement, ParseError> {
         // Redundant
@@ -433,6 +442,7 @@ impl TokenIter {
     }
 
     fn expect_module_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
         self.expect_keyword(
             Keyword::Module,
             // reason omitted
@@ -448,6 +458,79 @@ impl TokenIter {
         )?;
 
         Ok(Statement::Module(Module { name, body }))
+    }
+
+    fn expect_template_statement(&mut self) -> Result<Statement, ParseError> {
+        // Redundant
+        self.expect_keyword(
+            Keyword::Template,
+            // reason omitted
+        )?;
+
+        let name = self.expect_ident()?;
+
+        self.expect_keyword_reason(Keyword::BraceLeft, "`template` statement must include `{`")?;
+
+        let mut items = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::BraceRight) => {
+                    self.next();
+                    break;
+                }
+
+                Token::Keyword(Keyword::Func) => {
+                    let func = self.expect_func_statement()?;
+                    let Statement::Func(func) = func else {
+                        panic!("Statement should be `Statement::Func`");
+                    };
+                    items.push(TemplateItem::Func(func));
+                }
+
+                Token::Ident(ident) => {
+                    let name = ident.to_owned();
+                    self.next();
+                    let default_value = match self.next() {
+                        Token::Keyword(Keyword::Comma) => {
+                            None
+                        }
+
+                        Token::Keyword(Keyword::SingleEqual) => {
+                            let value = self.expect_expr()?;
+                            self.expect_keyword_reason(
+                                Keyword::Comma,
+                                "Template key with default value must be followed with `,`",
+                            )?;
+                            Some(value)
+                        }
+
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                [Keyword::Comma, Keyword::SingleEqual],
+                                "Template key must be followed with `,` or `=` to declare a default value"
+                            ))
+                        }
+                    };
+                    items.push(TemplateItem::Key {
+                        name,
+                        default_value,
+                    });
+                }
+
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        ["template item name", Keyword::Func, Keyword::BraceRight],
+                        "Templates can only contain keys and functions",
+                    ))
+                }
+            }
+        }
+
+        Ok(Statement::Template(Template { name, items }))
     }
 
     fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
@@ -682,9 +765,6 @@ impl TokenIter {
         let if_statement = self.expect_if_any()?;
         Ok(Statement::If(if_statement))
     }
-
-    // Perhaps it would be better to use `expect_if_statement` and then check
-    // for `else` branch to convert to `Expr`
 
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
         let if_statement = self.expect_if_any()?;

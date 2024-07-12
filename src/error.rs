@@ -73,7 +73,7 @@ impl Display for ParseError {
                 const TERNARY: &str = "Use an `if-else` block as a ternary expression";
 
                 let reasons: &[&str] = match found.as_str() {
-                    ";" => &["Semicolons are not supported"],
+                    ";" | ";;" | ";;;" => &["Semicolons are not supported"],
                     "!" => &[NOT],
                     "~" => &[NOT, BITWISE],
                     "&&" => &[LOG_AND],

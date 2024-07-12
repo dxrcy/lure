@@ -1,6 +1,11 @@
-let a = if abc then
-    123
-elif 123 then
 
-end
-aowidj
+
+template Foo {
+    abc,
+
+    func bar()
+        print(1)
+    end
+}
+
+

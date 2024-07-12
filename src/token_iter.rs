@@ -51,9 +51,8 @@ impl TokenIter {
     }
 
     pub fn line(&self) -> usize {
-        self.tokens
-            .get(self.index - 1)
-            .map_or(0, |token_ref| token_ref.line)
+        let index = if self.index == 0 { 0 } else { self.index - 1 };
+        self.tokens.get(index).map_or(0, |token_ref| token_ref.line)
     }
 }
 
