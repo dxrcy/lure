@@ -611,7 +611,7 @@ impl TokenIter {
         Ok(Expr::Func(FuncExpr { params, body }))
     }
 
-    fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_if_any(&mut self) -> Result<IfStatement, ParseError> {
         // Redundant
         self.expect_keyword(
             Keyword::If,
@@ -671,73 +671,38 @@ impl TokenIter {
 
         self.expect_keyword_reason(Keyword::End, "`if` statement must end with `end` keyword")?;
 
-        Ok(Statement::If(IfStatement {
+        Ok(IfStatement {
             if_branch,
             elif_branches,
             else_branch,
-        }))
+        })
+    }
+
+    fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
+        let if_statement = self.expect_if_any()?;
+        Ok(Statement::If(if_statement))
     }
 
     // Perhaps it would be better to use `expect_if_statement` and then check
     // for `else` branch to convert to `Expr`
 
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::If,
-            // reason omitted
-        )?;
+        let if_statement = self.expect_if_any()?;
 
-        let condition = self.expect_expr()?;
-        self.expect_keyword_reason(
-            Keyword::Then,
-            "`if` condition must be followed with `then` keyword",
-        )?;
-        let body = self.expect_body()?;
-        let if_branch = Box::new(IfBranch { condition, body });
+        let IfStatement {
+            if_branch,
+            elif_branches,
+            else_branch,
+        } = if_statement;
 
-        let mut elif_branches = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Keyword(Keyword::Elif) => {
-                    self.next();
-                    let condition = self.expect_expr()?;
-                    self.expect_keyword_reason(
-                        Keyword::Then,
-                        "`elif` condition must be followed with `then` keyword",
-                    )?;
-                    let body = self.expect_body()?;
-                    elif_branches.push(IfBranch { condition, body });
-                }
-                Token::Keyword(Keyword::Else) => break,
-                token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        [Keyword::Elif, Keyword::Else],
-                        "`if` expressions must include an `else` branch",
-                    ));
-                }
-            }
-        }
-
-        let else_branch = match self.peek() {
-            Token::Keyword(Keyword::Else) => {
-                self.next();
-                let body = self.expect_body()?;
-                body
-            }
-            token => {
-                return Err(unexpected!(
-                    self.line(),
-                    token.to_owned(),
-                    [Keyword::Else],
-                    "`if` expressions must include an `else` branch",
-                ))
-            }
+        let Some(else_branch) = else_branch else {
+            return Err(unexpected!(
+                self.line(),
+                Token::Keyword(Keyword::End),
+                [Keyword::Elif, Keyword::Else],
+                "`if` expressions must include an `else` branch",
+            ));
         };
-
-        self.expect_keyword_reason(Keyword::End, "`if` expression must end with `end` keyword")?;
 
         Ok(Expr::If(IfExpr {
             if_branch,
