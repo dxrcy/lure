@@ -6,6 +6,17 @@ Actually it is inspired by Lua, Rust, Zig, Haskell, Go, and probably others.
 
 At the moment is is just a concept...
 
+# Parsing TODO
+
+`.` following function call
+    - hmm...
+
+`return` with no expression
+    - Possibly may have to disallow statements after `return` statement, to
+    check for `end`|`EOF` (and maybe? other tokens)
+
+`self` keyword ?
+
 # Syntax
 
 ## Keywords

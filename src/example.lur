@@ -1,229 +1,319 @@
-#!/bin/lure
+#! Standard library for Lure runtime
 
-# A file is a module
-# A module contains statements
-# A statement can be:
-# - function
-# - template
-# - another module
-# - variable declaration
-# - assignment operation
-# - loop / conditional
-# - expression (incl. function call)
+# Some of these functions *may* be moved to `core` to improve performance?
+# ^ Probably not
 
-# NO statements/functions are hoisted
+let core = require("@core")
 
-# idk should functions be able to return multiple values ? 
-# not in a table-destructuring way, but like lua.
+# Variable re-exports inherit type signature and doc comments
 
-# Implicit imports for every file/module
-let std = require("@std") # Or "std"
-let print = std.prelude.print
-let println = std.prelude.println
-# and so forth...
+## Automatically imported items
+module prelude
+    let io = io
+    let sys = sys
+    let math = math
 
-# Import a module
-# Executes module when `require` expression is run
-# This will run any module-level statements
-let lib = require("lib")
-let add = lib.add
+    let exit = sys.exit
+    let panic = sys.panic
+    let todo = sys.todo
+    let assert = sys.assert
 
-println("Hello World")
+    let print = io.print
+    let println = io.println
+    let File = io.File
 
-# All variables and items are scoped by block
+    let type_of = reflection.type_of
 
-let x = 2
-x = x + 3 # Advanced assignment operators are NOT supported
-println(x)
-
-# Re-declaration of variable shadows original
-let x = 4
-
-if x > 3 then
-    println("> 3")
-elif x == 2 then
-    println("== 2")
-else
-    println("<= 3")
-end
-# (Alternative formatting)
-if x > 3
-    then println("> 3")
-    else println("<= 3")
+    let len = util.len
+    let to_string = util.to_string
+    let format = util.format
+    let is_int = util.is_int
 end
 
-# Hopefully this can work
-let y = if x > 3
-    then 4
-    else 6
-end
+# The `..` operator is used for variadic arguments.
+# Only one is allowed in a function signature, as the last parameter.
+# Given a parameter `..args`, using `args` gives a table of arguments.
+# Passing `..list` or `..{ 3, 4 }` into another function passes every argument
+# individually, instead of passing the whole table.
 
-# LValues
-a
-a.b.c
-a[0]
-a.b[0]
-a[0].b
+module util
+    let len = core.len
+    let to_string = core.to_string
+    let compare = core.compare
 
-let s = "abc"
-log(s)
-let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
-println(s, s2)
+    ## Format arguments to string
+    ##
+    ## Rust-style formatting
+    ##
+    ## Panics if an error occurs
+    #: string, ..any -> string
+    func format(fmt, ..args)
+        let result = try_format(fmt, ..args)
+        if result.err != nil then
+            panic(result.err)
+        end
+        return result.ok
+    end
 
-# Simple range for-loop
-for i in 0 to 10 do
-    log(i) # 0, 1, ... 9
-end
-for i in 0 to len(list) do
-    println("{}: {}\n", i, list[i])
-end
+    # Rename to `format_try` or something?
+    # A nice naming scheme will place `xyz` and `try_xyz` close alphabetically
 
-let list = { 4, 5, 6 }
+    #: string, ..any -> { ok = string } | { err = string }
+    func try_format(fmt, ..args)
+        if fmt == nil then
+            return ""
+        elif len(args) == 0 then
+            return fmt
+        end
 
-println(len(list))
+        let output = ""
+        let arg_index = 0
 
-# Maybe use different syntax to comma separated idents
-for i in list do
-    println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
-end
-for i, item in list do
-    println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
-end
-for _, item in list do
-    println("{}\n", item) # 4, 5, 6
-end
-# ^ Underscore is used to ignore a value
+        for i in 0 to len(fmt) do
+            if fmt[i] == '{' then
+                i = i + 1
+                if i >= len(fmt) then
+                    return { err = "Unexpected end of format string. Expected `}}`" }
+                elif fmt[i] == '{' then
+                    output = output & '{'
+                    continue
+                elif fmt[i] != '}' then
+                    return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
+                end
+                if arg_index >= len(args) then
+                    return { err = "Not enough arguments" }
+                end
+                output = output & to_string(args[arg_index])
+                arg_index = arg_index + 1
+            elif fmt[i] == '}' then
+                i = i + 1
+                if fmt[i] == '}' then
+                    output = output & '}'
+                else
+                    return { err = "Unexpected `}}`" }
+                end
+            else
+                output = output & fmt[i]
+            end
+        end
 
-let dict = {
-    a = 1,
-    b = 2,
-}
+        if arg_index + 1 < len(args) then
+            return { err = "Too many arguments" }
+        end
 
-for key in dict do
-    println("{}: {}\n", key, dict[key]) # a: 1, b: 2
-end
-for key, value in dict do
-    println("{}: {}\n", key, value) # a: 1, b: 2
-end
-for _, value in dict do
-    println("{}\n", value) # 1 2
-end
+        return { ok = output }
+    end
 
-let mixed = {
-    4,
-    a = 5,
-}
-
-for key in mixed do
-    println("{}: {}\n", key, mixed[key]) # 0: 4, a: 5
-end
-for key, value in mixed do
-    println("{}: {}\n", key, value) # 0: 4, a: 5
-end
-for _, value in mixed do
-    println("{}\n", value) # 4, 5
-end
-
-let a = 0
-while a < 10 do
-    log(a)
-    a = a + 1
-end
-
-let a = 0
-while a do
-    log(a)
-    a = a + 1
-    if a > 10 then
-        break
+    ## Return `true` if value is an integer
+    #: any -> bool
+    func is_int(value)
+        return type_of(value) != "number" and value % 1 == 0
     end
 end
 
-log(add(5, 6))
-log(lib.add(5, 6))
-
-log(lib.PI)
-
-# Maybe change keyword `as` for templates ?
-let john = as lib.Person {
-    name = "John",
-    age = 30,
-}
-
-assert(type_of(nil),   "nil")
-assert(type_of(true),  "bool")
-assert(type_of(4),     "number")
-assert(type_of(4.5),   "number")
-assert(type_of('f'),   "char")
-assert(type_of("foo"), "string")
-assert(type_of(list),  "table")
-assert(type_of(dict),  "table")
-assert(type_of(mixed), "table")
-assert(type_of(john),  "table") # template "person" is no longer relevant
-
-# A template is used as a value. Not allowed.
-# Interpreter will throw an error when checking if variables are declared
-assert(type_of(person), "never")
-
-# This also *might* throw an error?
-# Unless modules are converted to tables
-assert(type_of(lib), "never")
-
-# Indexing and slicing
-# Works the same for strings and lists
-let a = "abcdef"
-assert(a[0], "a")
-assert(a[-1], "f")
-assert(a[1, 2], "ab")
-assert(a[0, -1], "abcdef")
-assert(a[1, -1], "bcdef")
-assert(a[0, -2], "abcde")
-# Syntax sugar for call to core method implementations
-assert(a[0], a.get(0, nil))
-assert(a[-1], a.get(-1, nil))
-assert(a[1, 2], a.slice(1, 2))
-assert(a[0, -1], a.slice(0, -1))
-a[0] = "A"
-a.set(0, "A")
-# Panic if type is not table or string
-let n = 123
-n[0]
-n[0, 3]
-n[0] = 5
-n.get(0)
-n.slice(0, 3)
-n.set(0, 5)
-# Named table access
-let b = { a = 1, b = 2 }
-assert(b.a, 1)
-assert(b.b, 2)
-assert(b["a"], 1)
-assert(b[0], nil)
-assert(b[0, 1], nil)
-
-# Spread operator
-let jane = { name = "Jane", ..john }
-
-# Match/switch statements are not supported
-let x = 3
-# As a statement
-if x == 4 then
-    println("4")
-elif x == 5 then
-    println("5")
-    println("it is five")
-else
-    println("default")
+## Type reflection
+module reflection
+    let type_of = core.type_of
 end
 
-# Comparing to a table
-# Must check each key individually
-if john.name == "John" then
-    println("Hello John")
-else
-    john.name
-    println("Who are you")
+## System
+module sys
+    # (inherit type signature and doc comments)
+    let exit = core.exit
+
+    # Underscored name is not treated specially by the interpreter, but may
+    # signify a 'private' item to the developer or linter
+
+    #: string
+    func _panic_unformatted(message)
+        write(io.stderr, kind)
+        exit(255)
+    end
+
+    #: string, string | nil, ..any -> never
+    func _panic_kind(kind, fmt, ..args)
+        if fmt == nil then
+            _panic_unformatted(kind)
+        elif len(args) < 1 then
+            _panic_unformatted(kind & ": " & fmt)
+        else
+            _panic_unformatted(kind & ": " & std.format(fmt, ..args))
+        end
+    end
+
+    #: string | nil, ..any -> never
+    func panic(fmt, ..args)
+        _panic_kind("panic", fmt, ..args)
+    end
+
+    ## Panic with 'to do' message
+    #: string | nil, ..any -> never
+    func todo(fmt, ..args)
+        _panic_kind("todo", fmt, ..args)
+    end
+
+    ## Panic with 'assertion failed' message, if condition not met
+    #: bool, string | nil, ..any -> void
+    func assert(condition, fmt, ..args)
+        if condition then
+            return nil
+        end
+        _panic_kind("assertion failed", fmt, ..args)
+    end
+
+    #: ..string -> int
+    func command(..args)
+        return core.system(args)
+    end
 end
 
+## Input/Output
+module io
+    ## Standard out
+    #: File
+    let stdin  = as File { path = "/dev/stdin", handle = core.stdin }
+    ## Standard in
+    #: File
+    let stdout = as File { path = "/dev/stdout", handle = core.stdout }
+    ## Standard error
+    #: File
+    let stderr = as File { path = "/dev/stderr", handle = core.stderr }
+
+    ## I/O error
+    template Error {
+        #: int
+        code,
+        #: string
+        message,
+    }
+
+    ## Open file
+    template File {
+        #: string
+        path,
+        #: int
+        handle,
+        # put a buffer or something here ideally...
+
+        #: string, string -> { err = Error } | { ok = File }
+        func open(path, mode)
+            let result = core.open(path, mode)
+            let err_code = result[0]
+            let handle = result[1]
+            return io._result_from(err_code, as File {
+                path = filename,
+                handle = handle,
+            })
+        end
+
+        #: (File) -> { err = Error } | { ok = nil }
+        func close(self)
+            let err_code = core.close(self.handle)
+            return io._result_from(err_code, nil)
+        end
+
+        func read(self, ) todo() end
+
+        ## Read a line from file
+        #: (File) -> { err = Error } | { ok = string }
+        func read_line(self)
+            let result = core.read_line(self.handle)
+            let err_code = result[0]
+            let line = result[1]
+            return io._result_from(err_code, line)
+        end
+
+        ## Write formatted arguments to file, without a newline.
+        #: (File), string, ..any -> { err = Error } | { ok = nil }
+        func write(self, fmt, ..args)
+            let text = format(fmt, ..args)
+            let err_code = core.write(self.handle, text)
+            return io._result_from(err_code)
+        end
+
+        # RENAME to be consistent with `read_line` !!!
+        ## Write formatted arguments to file, with a newline.
+        #: (File), string, ..any -> { err = Error } | { ok = nil }
+        func write_line(self, fmt, ..args)
+            return write(self, fmt & '\n', ..args)
+        end
+    }
+
+    ## Convert an IO error code to an Error
+    #: int, a -> { err = Error } | { ok = a }
+    func _result_from(code, ok)
+        let message =
+        if code == 0 then
+            return { ok = ok }
+        elif code == 1
+            then "Not found"
+        # elif ...
+        else
+            "Unknown error"
+        end
+        return {
+            err = as Error {
+                code = code,
+                message = message,
+            }
+        }
+    end
+
+    ## Read from stdin
+    #: void -> string
+    func scan_line()
+        let result = stdin.read_line()
+        assert(result.err == nil)
+        return result.ok
+    end
+
+    ## Print formatted arguments to stdout, without a newline.
+    #: string, ..any -> void
+    func print(fmt, ..args)
+        assert(stdout.write(fmt, ..args) == nil)
+    end
+
+    ## Print formatted arguments to stdout, with a newline.
+    #: string, ..any -> void
+    func println(fmt, ..args)
+        assert(stdout.write(fmt & '\n', ..args) == nil)
+    end
+
+    # ?? Maybe use stderr instead ?
+    ## Print each argument to stdout, with newline.
+    ##
+    ## Used for debugging.
+    #: ..any -> void
+    func log(..args)
+        for i, arg in args do
+            if i > 0 then
+                print(" ")
+            end
+            print("{}", arg)
+        end
+        println()
+    end
+end
+
+## Math(s)
+module math
+    ## PI
+    let PI = 3.141592653589793
+
+    let floor = core.floor
+    let random = core.random
+
+    ## Generate a random float in the range [min, max)
+    #: number, number -> number
+    func random_float(min, max)
+        return min + random() * (max - min)
+    end
+
+    ## Generate a random integer in the range [min, max)
+    #: int, int -> int
+    func random_int(min, max)
+        return floor(random_float(min, max))
+    end
+end
 
 

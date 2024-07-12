@@ -79,7 +79,7 @@ make_keyword! {
     "break" => Break,
     "continue" => Continue,
     "as" => As,
-    "self" => Self_,
+    // "self" => Self_,
     "and" => And,
     "or" => Or,
     "not" => Not,
