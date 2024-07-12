@@ -297,13 +297,6 @@ impl TokenIter {
         }
     }
 
-    fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), ParseError> {
-        match self.next() {
-            Token::Keyword(other) if other == &keyword => Ok(()),
-            token => Err(unexpected!(self.line(), token.to_owned(), [keyword])),
-        }
-    }
-
     fn expect_keyword_reason(
         &mut self,
         keyword: Keyword,
@@ -529,57 +522,7 @@ impl TokenIter {
             "`func` statement must include parameter list between parentheses",
         )?;
 
-        let mut params = DeclareParams::default();
-        loop {
-            match self.next() {
-                Token::Keyword(Keyword::ParenRight) => break,
-
-                Token::Keyword(Keyword::Spread) => {
-                    let ident = match self.next() {
-                        Token::Ident(ident) => ident.to_owned(),
-                        token => {
-                            return Err(unexpected!(
-                                self.line(),
-                                token.to_owned(),
-                                ["parameter name"],
-                                "Spread operator must be followed by a parameter name",
-                            ))
-                        }
-                    };
-                    params.rest = Some(ident);
-                    self.expect_keyword_reason(
-                        Keyword::ParenRight,
-                        "Spread parameter must be last parameter",
-                    )?;
-                    break;
-                }
-
-                Token::Ident(ident) => {
-                    params.params.push(ident.to_owned());
-                    match self.next() {
-                        Token::Keyword(Keyword::Comma) => (),
-                        Token::Keyword(Keyword::ParenRight) => break,
-                        token => {
-                            return Err(unexpected!(
-                                self.line(),
-                                token.to_owned(),
-                                [Keyword::Comma, Keyword::ParenRight],
-                                "Parameters must be separated with commas",
-                            ))
-                        }
-                    }
-                }
-
-                token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        ["parameter name", Keyword::ParenRight],
-                        // reason omitted
-                    ));
-                }
-            }
-        }
+        let params = self.expect_param_list()?;
 
         let body = self.expect_body()?;
 
@@ -607,6 +550,16 @@ impl TokenIter {
             }
         }
 
+        let params = self.expect_param_list()?;
+
+        let body = self.expect_body()?;
+
+        self.expect_end()?;
+
+        Ok(Expr::Func(FuncExpr { params, body }))
+    }
+
+    fn expect_param_list(&mut self) -> Result<DeclareParams, ParseError> {
         let mut params = DeclareParams::default();
         loop {
             match self.next() {
@@ -653,17 +606,13 @@ impl TokenIter {
                         self.line(),
                         token.to_owned(),
                         ["parameter name", Keyword::ParenRight],
-                        // reason omitted
+                        "Parameter list must end with `)`"
                     ));
                 }
             }
         }
 
-        let body = self.expect_body()?;
-
-        self.expect_end()?;
-
-        Ok(Expr::Func(FuncExpr { params, body }))
+        Ok(params)
     }
 
     fn expect_if(&mut self) -> Result<IfStatement, ParseError> {
@@ -1163,7 +1112,7 @@ impl TokenIter {
         };
 
         // Just check it
-        if self.expect_keyword(Keyword::SingleEqual).is_err() {
+        if self.next() != &Token::Keyword(Keyword::SingleEqual) {
             self.set_index(index);
             return None;
         };
