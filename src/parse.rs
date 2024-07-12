@@ -189,6 +189,7 @@ struct While {
 #[derive(Debug, Default, PartialEq)]
 struct Table {
     items: Vec<TableItem>,
+    spread: Option<LValue>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -1083,6 +1084,15 @@ impl TokenIter {
 
         loop {
             let index = self.get_index();
+
+            if self.peek() == &Token::Keyword(Keyword::Spread) {
+                self.next();
+                let ident = self.expect_ident()?;
+                let lvalue = self.expect_lvalue(ident)?;
+                table.spread = Some(lvalue);
+                self.expect_keyword_reason(Keyword::BraceRight, "Spread key must be last key")?;
+                break;
+            }
 
             let key_token = self.next().to_owned();
             let key = match self.next() {
