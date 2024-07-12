@@ -119,6 +119,7 @@ enum Expr {
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     If(IfExpr),
     Table(Table),
+    TemplateTable(LValue, Table),
     Func(FuncExpr),
 }
 
@@ -1018,65 +1019,19 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::BraceLeft) => {
-                let mut table = Table::default();
-                let mut implicit_key = 0;
+                self.set_index(self.get_index() - 1);
+                let table = self.expect_table()?;
+                return Ok(table);
+            }
 
-                // Empty table
-                if self.peek() == &Token::Keyword(Keyword::BraceRight) {
-                    self.next();
-                    return Ok(Expr::Table(table));
-                }
-
-                loop {
-                    let index = self.get_index();
-
-                    let key_token = self.next().to_owned();
-                    let key = match self.next() {
-                        Token::Keyword(Keyword::SingleEqual) => match key_token {
-                            Token::Literal(literal) => literal.to_owned(),
-                            Token::Ident(ident) => Literal::String(ident.to_owned()),
-
-                            _ => {
-                                return Err(unexpected!(
-                                    self.line(),
-                                    Keyword::SingleEqual,
-                                    ["literal or identifier with `=`", "expression"],
-                                    "Table key must be a literal or an identifier followed by `=`",
-                                ));
-                            }
-                        },
-                        _ => {
-                            self.set_index(index);
-                            let key = implicit_key;
-                            implicit_key += 1;
-                            Literal::Number(key as f64)
-                        }
-                    };
-
-                    let value = Box::new(self.expect_expr()?);
-
-                    table.items.push(TableItem { key, value });
-
-                    match self.next() {
-                        Token::Keyword(Keyword::Comma) => {
-                            if self.peek() == &Token::Keyword(Keyword::BraceRight) {
-                                self.next();
-                                break;
-                            }
-                        }
-                        Token::Keyword(Keyword::BraceRight) => break,
-                        token => {
-                            return Err(unexpected!(
-                                self.line(),
-                                token.to_owned(),
-                                [Keyword::Comma, Keyword::BraceRight],
-                                "Table items must be separated with commas",
-                            ))
-                        }
-                    }
-                }
-
-                return Ok(Expr::Table(table));
+            Token::Keyword(Keyword::As) => {
+                let ident = self.expect_ident()?;
+                let name = self.expect_lvalue(ident)?;
+                let table = self.expect_table()?;
+                let Expr::Table(table) = table else {
+                    panic!("Expression should be `Expr::Table`");
+                };
+                return Ok(Expr::TemplateTable(name, table));
             }
 
             Token::Keyword(Keyword::If) => {
@@ -1108,6 +1063,74 @@ impl TokenIter {
                 return Err(unexpected!(self.line(), token, ["expression"], reason));
             }
         }
+    }
+
+    fn expect_table(&mut self) -> Result<Expr, ParseError> {
+        // Redundant
+        self.expect_keyword(
+            Keyword::BraceLeft,
+            // reason omitted
+        )?;
+
+        let mut table = Table::default();
+        let mut implicit_key = 0;
+
+        // Empty table
+        if self.peek() == &Token::Keyword(Keyword::BraceRight) {
+            self.next();
+            return Ok(Expr::Table(table));
+        }
+
+        loop {
+            let index = self.get_index();
+
+            let key_token = self.next().to_owned();
+            let key = match self.next() {
+                Token::Keyword(Keyword::SingleEqual) => match key_token {
+                    Token::Literal(literal) => literal.to_owned(),
+                    Token::Ident(ident) => Literal::String(ident.to_owned()),
+
+                    _ => {
+                        return Err(unexpected!(
+                            self.line(),
+                            Keyword::SingleEqual,
+                            ["literal or identifier with `=`", "expression"],
+                            "Table key must be a literal or an identifier followed by `=`",
+                        ));
+                    }
+                },
+                _ => {
+                    self.set_index(index);
+                    let key = implicit_key;
+                    implicit_key += 1;
+                    Literal::Number(key as f64)
+                }
+            };
+
+            let value = Box::new(self.expect_expr()?);
+
+            table.items.push(TableItem { key, value });
+
+            match self.next() {
+                Token::Keyword(Keyword::Comma) => {
+                    if self.peek() == &Token::Keyword(Keyword::BraceRight) {
+                        self.next();
+                        break;
+                    }
+                }
+                Token::Keyword(Keyword::BraceRight) => break,
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Comma, Keyword::BraceRight],
+                        "Table items must be separated with commas",
+                    ))
+                }
+            }
+        }
+
+        Ok(Expr::Table(table))
     }
 
     fn expect_lvalue(&mut self, origin: Ident) -> Result<LValue, ParseError> {

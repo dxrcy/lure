@@ -8,4 +8,8 @@ template Foo {
     end
 }
 
+let a = as Foo {
+    abc
+}
+
 
