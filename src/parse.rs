@@ -303,6 +303,7 @@ impl TokenIter {
             token => Err(unexpected!(self.line(), token.to_owned(), [keyword])),
         }
     }
+
     fn expect_keyword_reason(
         &mut self,
         keyword: Keyword,
@@ -319,39 +320,50 @@ impl TokenIter {
         }
     }
 
+    fn expect_end(&mut self) -> Result<(), ParseError> {
+        self.expect_keyword_reason(Keyword::End, "Code block must be closed with `end` keyword")?;
+        Ok(())
+    }
+
     fn expect_body(&mut self) -> Result<StatementList, ParseError> {
         let mut statements = Vec::new();
 
         loop {
             let statement = match self.peek() {
-                Token::Eof => {
-                    println!("\x1b[31m(EOF)\x1b[0m");
-                    break;
-                }
-                Token::Keyword(Keyword::End) => {
-                    println!("(end)");
-                    break;
-                }
-                Token::Keyword(Keyword::Elif) => {
-                    println!("(elif)");
-                    break;
-                }
-                Token::Keyword(Keyword::Else) => {
-                    println!("(else)");
-                    break;
-                }
-                Token::Keyword(Keyword::Case) => {
-                    println!("(case)");
+                Token::Eof
+                | Token::Keyword(Keyword::End | Keyword::Elif | Keyword::Else | Keyword::Case) => {
+                    println!("(close)");
                     break;
                 }
 
-                Token::Keyword(Keyword::Let) => self.expect_let_statement()?,
-                Token::Keyword(Keyword::Func) => self.expect_func_statement()?,
-                Token::Keyword(Keyword::If) => self.expect_if_statement()?,
-                Token::Keyword(Keyword::For) => self.expect_for_statement()?,
-                Token::Keyword(Keyword::While) => self.expect_while_statement()?,
-                Token::Keyword(Keyword::Module) => self.expect_module_statement()?,
-                Token::Keyword(Keyword::Template) => self.expect_template_statement()?,
+                Token::Keyword(Keyword::Let) => {
+                    self.next();
+                    self.expect_let_statement()?
+                }
+                Token::Keyword(Keyword::Func) => {
+                    self.next();
+                    self.expect_func_statement()?
+                }
+                Token::Keyword(Keyword::If) => {
+                    self.next();
+                    self.expect_if_statement()?
+                }
+                Token::Keyword(Keyword::For) => {
+                    self.next();
+                    self.expect_for_statement()?
+                }
+                Token::Keyword(Keyword::While) => {
+                    self.next();
+                    self.expect_while_statement()?
+                }
+                Token::Keyword(Keyword::Module) => {
+                    self.next();
+                    self.expect_module_statement()?
+                }
+                Token::Keyword(Keyword::Template) => {
+                    self.next();
+                    self.expect_template_statement()?
+                }
 
                 Token::Keyword(Keyword::Break) => {
                     self.next();
@@ -361,7 +373,10 @@ impl TokenIter {
                     self.next();
                     Statement::Continue
                 }
-                Token::Keyword(Keyword::Return) => self.expect_return_statement()?,
+                Token::Keyword(Keyword::Return) => {
+                    self.next();
+                    self.expect_return_statement()?
+                }
 
                 token => {
                     let token = token.to_owned();
@@ -385,12 +400,6 @@ impl TokenIter {
     // `Statement`. Then wrap in statement after 'expecting'.
 
     fn expect_return_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::Return,
-            // reason omitted
-        )?;
-
         let value_first = self.expect_expr()?;
 
         let mut value_rest = Vec::new();
@@ -411,12 +420,6 @@ impl TokenIter {
     }
 
     fn expect_let_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::Let,
-            // reason omitted
-        )?;
-
         let name_first = self.expect_ident()?;
 
         let mut name_rest = Vec::new();
@@ -444,40 +447,24 @@ impl TokenIter {
     }
 
     fn expect_module_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::Module,
-            // reason omitted
-        )?;
-
         let name = self.expect_ident()?;
 
         let body = self.expect_body()?;
 
-        self.expect_keyword(
-            Keyword::End,
-            // reason omitted
-        )?;
+        self.expect_end()?;
 
         Ok(Statement::Module(Module { name, body }))
     }
 
     fn expect_template_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::Template,
-            // reason omitted
-        )?;
-
         let name = self.expect_ident()?;
 
         self.expect_keyword_reason(Keyword::BraceLeft, "`template` statement must include `{`")?;
 
         let mut items = Vec::new();
         loop {
-            match self.peek() {
+            match self.next() {
                 Token::Keyword(Keyword::BraceRight) => {
-                    self.next();
                     break;
                 }
 
@@ -491,7 +478,6 @@ impl TokenIter {
 
                 Token::Ident(ident) => {
                     let name = ident.to_owned();
-                    self.next();
                     let default_value = match self.next() {
                         Token::Keyword(Keyword::Comma) => {
                             None
@@ -536,11 +522,6 @@ impl TokenIter {
     }
 
     fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
-        self.expect_keyword(
-            Keyword::Func,
-            // reason omitted
-        )?;
-
         let name = self.expect_ident()?;
 
         self.expect_keyword_reason(
@@ -602,20 +583,12 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword(
-            Keyword::End,
-            // reason omitted
-        )?;
+        self.expect_end()?;
 
         Ok(Statement::Func(FuncStatement { name, params, body }))
     }
 
     fn expect_func_expr(&mut self) -> Result<Expr, ParseError> {
-        self.expect_keyword(
-            Keyword::Func,
-            // reason omitted
-        )?;
-
         match self.next() {
             Token::Keyword(Keyword::ParenLeft) => (),
             token => {
@@ -688,21 +661,12 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword(
-            Keyword::End,
-            // reason omitted
-        )?;
+        self.expect_end()?;
 
         Ok(Expr::Func(FuncExpr { params, body }))
     }
 
-    fn expect_if_any(&mut self) -> Result<IfStatement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::If,
-            // reason omitted
-        )?;
-
+    fn expect_if(&mut self) -> Result<IfStatement, ParseError> {
         let condition = self.expect_expr()?;
         self.expect_keyword_reason(
             Keyword::Then,
@@ -754,7 +718,7 @@ impl TokenIter {
             }
         };
 
-        self.expect_keyword_reason(Keyword::End, "`if` statement must end with `end` keyword")?;
+        self.expect_end()?;
 
         Ok(IfStatement {
             if_branch,
@@ -764,12 +728,12 @@ impl TokenIter {
     }
 
     fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
-        let if_statement = self.expect_if_any()?;
+        let if_statement = self.expect_if()?;
         Ok(Statement::If(if_statement))
     }
 
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
-        let if_statement = self.expect_if_any()?;
+        let if_statement = self.expect_if()?;
 
         let IfStatement {
             if_branch,
@@ -794,12 +758,6 @@ impl TokenIter {
     }
 
     fn expect_for_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::For,
-            // reason omitted
-        )?;
-
         let key_name = self.expect_ident()?;
 
         let value_name = match self.peek() {
@@ -837,7 +795,7 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword_reason(Keyword::End, "`for` statement must end with `end` keyword")?;
+        self.expect_end()?;
 
         Ok(Statement::For(For {
             key_name,
@@ -848,12 +806,6 @@ impl TokenIter {
     }
 
     fn expect_while_statement(&mut self) -> Result<Statement, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::While,
-            // reason omitted
-        )?;
-
         let condition = self.expect_expr()?;
 
         self.expect_keyword_reason(
@@ -863,10 +815,7 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_keyword_reason(
-            Keyword::End,
-            "`while` statement must end with `end` keyword",
-        )?;
+        self.expect_end()?;
 
         Ok(Statement::While(While {
             branch: IfBranch { condition, body },
@@ -908,6 +857,15 @@ impl TokenIter {
             Token::Keyword(Keyword::LessEqual) => BinaryOp::LessEqual,
             Token::Keyword(Keyword::GreaterThan) => BinaryOp::GreaterThan,
             Token::Keyword(Keyword::GreaterEqual) => BinaryOp::GreaterEqual,
+
+            Token::Keyword(Keyword::SingleEqual) => {
+                return Err(unexpected!(
+                    self.line(),
+                    Keyword::SingleEqual,
+                    ["rest of expression", "statement"],
+                    "Assignment operations cannot be used as expressions"
+                ));
+            }
 
             _ => {
                 return Ok(left);
@@ -1020,7 +978,6 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::BraceLeft) => {
-                self.set_index(self.get_index() - 1);
                 let table = self.expect_table()?;
                 return Ok(table);
             }
@@ -1028,6 +985,10 @@ impl TokenIter {
             Token::Keyword(Keyword::As) => {
                 let ident = self.expect_ident()?;
                 let name = self.expect_lvalue(ident)?;
+                self.expect_keyword_reason(
+                    Keyword::BraceLeft,
+                    "Template name must be followed by table",
+                )?;
                 let table = self.expect_table()?;
                 let Expr::Table(table) = table else {
                     panic!("Expression should be `Expr::Table`");
@@ -1036,15 +997,10 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::If) => {
-                // Maybe reversing and then immediately checking the same token
-                // is pointless and a bad idea. But then again it is not hurting
-                // anybody.
-                self.reverse(1);
                 return self.expect_if_expr();
             }
 
             Token::Keyword(Keyword::Func) => {
-                self.reverse(1);
                 return self.expect_func_expr();
             }
 
@@ -1067,12 +1023,6 @@ impl TokenIter {
     }
 
     fn expect_table(&mut self) -> Result<Expr, ParseError> {
-        // Redundant
-        self.expect_keyword(
-            Keyword::BraceLeft,
-            // reason omitted
-        )?;
-
         let mut table = Table::default();
         let mut implicit_key = 0;
 

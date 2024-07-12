@@ -24,7 +24,7 @@ func main(args)
 
         while true do
             for _ in 0 to 5 do
-                print("\033[A\033[K")
+                print("\x1b[A\x1b[K")
             end
 
             let visible = ""

@@ -156,7 +156,7 @@ module sys
     #: bool, string | nil, ..any -> void
     func assert(condition, fmt, ..args)
         if condition then
-            return
+            return nil
         end
         _panic_kind("assertion failed", fmt, ..args)
     end
