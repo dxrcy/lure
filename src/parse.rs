@@ -488,7 +488,7 @@ impl TokenIter {
 
         self.expect_keyword(Keyword::BraceLeft, "`template` statement must include `{`")?;
 
-        let mut items = Vec::new();
+        let mut entries = Vec::new();
         loop {
             match self.next() {
                 Token::Keyword(Keyword::BraceRight) => {
@@ -497,7 +497,7 @@ impl TokenIter {
 
                 Token::Keyword(Keyword::Func) => {
                     let func = self.expect_func_table_entry()?;
-                    items.push(TemplateEntry::Func(func));
+                    entries.push(TemplateEntry::Func(func));
                 }
 
                 Token::Ident(ident) => {
@@ -525,7 +525,7 @@ impl TokenIter {
                             ))
                         }
                     };
-                    items.push(TemplateEntry::Key {
+                    entries.push(TemplateEntry::Key {
                         key: name,
                         default_value,
                     });
@@ -535,17 +535,14 @@ impl TokenIter {
                     return Err(unexpected!(
                         self.line(),
                         token.to_owned(),
-                        ["template item name", Keyword::Func, Keyword::BraceRight],
+                        ["template entry name", Keyword::Func, Keyword::BraceRight],
                         "Templates can only contain keys and functions",
                     ))
                 }
             }
         }
 
-        Ok(Template {
-            name,
-            entries: items,
-        })
+        Ok(Template { name, entries })
     }
 
     fn expect_func_statement(&mut self) -> Result<FuncStatement, ParseError> {
@@ -1043,7 +1040,7 @@ impl TokenIter {
                             return Err(unexpected!(
                                 self.line(),
                                 token.to_owned(),
-                                ["table key or item name"],
+                                ["table entry name or expression"],
                                 reason,
                             ));
                         }
@@ -1216,7 +1213,7 @@ impl TokenIter {
                                 self.line(),
                                 token.to_owned(),
                                 [Keyword::Comma, Keyword::BraceRight],
-                                "Table items must be separated with commas",
+                                "Table entries must be separated with commas",
                             ))
                         }
                     }
