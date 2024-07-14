@@ -8,15 +8,10 @@ At the moment is is just a concept...
 
 # Parsing TODO
 
-`.` following function call
-    - hmm...
-
 `return` with no expression
     - For now, just require `return nil` for void returns
     - Possibly may have to disallow statements after `return` statement, to
     check for `end`|`EOF` (and maybe? other tokens)
-
-`self` keyword ?
 
 # Syntax
 

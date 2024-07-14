@@ -47,12 +47,20 @@ enum TemplateEntry {
         key: Ident,
         default_value: Option<Expr>,
     },
-    Func(FuncStatement),
+    Func(FuncTableEntry),
 }
 
 #[derive(Debug, PartialEq)]
 struct FuncStatement {
     name: Ident,
+    params: FuncParams,
+    body: StatementBody,
+}
+
+#[derive(Debug, PartialEq)]
+struct FuncTableEntry {
+    name: Ident,
+    self_param: bool,
     params: FuncParams,
     body: StatementBody,
 }
@@ -221,9 +229,9 @@ struct TableExpr {
 }
 
 #[derive(Debug, PartialEq)]
-struct TableEntry {
-    key: Literal,
-    value: Box<Expr>,
+enum TableEntry {
+    Key { key: Literal, value: Box<Expr> },
+    Func(FuncTableEntry),
 }
 
 /// >=1 items
@@ -488,7 +496,7 @@ impl TokenIter {
                 }
 
                 Token::Keyword(Keyword::Func) => {
-                    let func = self.expect_func_statement()?;
+                    let func = self.expect_func_table_entry()?;
                     items.push(TemplateEntry::Func(func));
                 }
 
@@ -555,6 +563,50 @@ impl TokenIter {
         self.expect_keyword_end()?;
 
         Ok(FuncStatement { name, params, body })
+    }
+
+    fn expect_func_table_entry(&mut self) -> Result<FuncTableEntry, ParseError> {
+        let name = self.expect_ident()?;
+
+        self.expect_keyword(
+            Keyword::ParenLeft,
+            "`func` statement must include parameter list between parentheses",
+        )?;
+
+        let self_param = match self.peek() {
+            Token::Keyword(Keyword::Self_) => {
+                self.next();
+                match self.peek() {
+                    Token::Keyword(Keyword::ParenRight) => (),
+                    Token::Keyword(Keyword::Comma) => {
+                        self.next();
+                    }
+                    token => {
+                        return Err(unexpected!(
+                            self.line(),
+                            token.to_owned(),
+                            [Keyword::Comma, Keyword::ParenRight],
+                            "Parameters must be separated with commas",
+                        ))
+                    }
+                }
+                true
+            }
+            _ => false,
+        };
+
+        let params = self.expect_params()?;
+
+        let body = self.expect_body()?;
+
+        self.expect_keyword_end()?;
+
+        Ok(FuncTableEntry {
+            name,
+            self_param,
+            params,
+            body,
+        })
     }
 
     fn expect_func_expr(&mut self) -> Result<FuncExpr, ParseError> {
@@ -628,11 +680,16 @@ impl TokenIter {
                 }
 
                 token => {
+                    let reason = match token {
+                        Token::Keyword(Keyword::Self_) =>
+                            "`self` paramter can only be used as the first parameter of a function table entry",
+                        _ => "Parameter list must end with `)`",
+                    };
                     return Err(unexpected!(
                         self.line(),
                         token.to_owned(),
                         ["parameter name", Keyword::ParenRight],
-                        "Parameter list must end with `)`"
+                        reason,
                     ));
                 }
             }
@@ -1085,57 +1142,84 @@ impl TokenIter {
         loop {
             let index = self.get_index();
 
-            if self.peek() == &Token::Keyword(Keyword::Spread) {
-                self.next();
-                let origin = self.expect_ident()?;
-                let value = self.expect_accessible_chain(origin)?;
-                table.base_table = Some(value);
-                self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
-                break;
-            }
-
-            let key_token = self.next().to_owned();
-            let key = match self.next() {
-                Token::Keyword(Keyword::SingleEqual) => match key_token {
-                    Token::Literal(literal) => literal.to_owned(),
-                    Token::Ident(ident) => Literal::String(ident.to_owned()),
-
-                    _ => {
-                        return Err(unexpected!(
-                            self.line(),
-                            Keyword::SingleEqual,
-                            ["literal or identifier with `=`", "expression"],
-                            "Table key must be a literal or an identifier followed by `=`",
-                        ));
-                    }
-                },
-                _ => {
-                    self.set_index(index);
-                    let key = implicit_key;
-                    implicit_key += 1;
-                    Literal::Number(key as f64)
-                }
-            };
-
-            let value = Box::new(self.expect_expr()?);
-
-            table.entries.push(TableEntry { key, value });
-
             match self.next() {
-                Token::Keyword(Keyword::Comma) => {
-                    if self.peek() == &Token::Keyword(Keyword::BraceRight) {
-                        self.next();
-                        break;
+                Token::Keyword(Keyword::Spread) => {
+                    let origin = self.expect_ident()?;
+                    let value = self.expect_accessible_chain(origin)?;
+                    table.base_table = Some(value);
+                    self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
+                    break;
+                }
+
+                Token::Keyword(Keyword::Func) => {
+                    let func = self.expect_func_table_entry()?;
+                    table.entries.push(TableEntry::Func(func));
+
+                    match self.peek() {
+                        Token::Keyword(Keyword::Comma) => {
+                            return Err(unexpected!(
+                                self.line(),
+                                Keyword::Comma,
+                                [
+                                    Keyword::BraceRight,
+                                    "literal or identifier with `=`",
+                                    "expression"
+                                ],
+                                "Function table entries must not be followed by a comma",
+                            ))
+                        }
+                        Token::Keyword(Keyword::BraceRight) => {
+                            self.next();
+                            break;
+                        }
+                        _ => (),
                     }
                 }
-                Token::Keyword(Keyword::BraceRight) => break,
+
                 token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        [Keyword::Comma, Keyword::BraceRight],
-                        "Table items must be separated with commas",
-                    ))
+                    let key_token = token.to_owned();
+                    let key = match self.next() {
+                        Token::Keyword(Keyword::SingleEqual) => match key_token {
+                            Token::Literal(literal) => literal.to_owned(),
+                            Token::Ident(ident) => Literal::String(ident.to_owned()),
+
+                            _ => {
+                                return Err(unexpected!(
+                                    self.line(),
+                                    Keyword::SingleEqual,
+                                    ["literal or identifier with `=`", "expression"],
+                                    "Table key must be a literal or an identifier followed by `=`",
+                                ));
+                            }
+                        },
+                        _ => {
+                            self.set_index(index);
+                            let key = implicit_key;
+                            implicit_key += 1;
+                            Literal::Number(key as f64)
+                        }
+                    };
+
+                    let value = Box::new(self.expect_expr()?);
+                    table.entries.push(TableEntry::Key { key, value });
+
+                    match self.next() {
+                        Token::Keyword(Keyword::Comma) => {
+                            if self.peek() == &Token::Keyword(Keyword::BraceRight) {
+                                self.next();
+                                break;
+                            }
+                        }
+                        Token::Keyword(Keyword::BraceRight) => break,
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                [Keyword::Comma, Keyword::BraceRight],
+                                "Table items must be separated with commas",
+                            ))
+                        }
+                    }
                 }
             }
         }

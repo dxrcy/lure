@@ -1,1 +1,6 @@
-a[1].b[90](123).a
+let a = {
+    func abc(self, ..a)
+    end
+    a = 123,
+    awdij
+}

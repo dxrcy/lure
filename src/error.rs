@@ -100,6 +100,7 @@ impl Display for ParseError {
                     ],
                     "$" => &["Identifiers must only contain characters [a-zA-Z0-9_@]"],
                     "??" => &["Fallbacks for `nil` values are not supported"],
+                    "..." | "...." => &["Use `..` (2 dots) for spread/rest operator"],
                     _ => return Ok(()),
                 };
                 for reason in reasons {
