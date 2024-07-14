@@ -129,7 +129,7 @@ struct LetStatement {
 
 #[derive(Debug, PartialEq)]
 struct ReturnStatement {
-    values: Plural<Expr>,
+    values: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -423,25 +423,34 @@ impl TokenIter {
         Ok(statements)
     }
 
-    //TODO: Maybe have all of these return their actual type, not just
-    // `Statement`. Then wrap in statement after 'expecting'.
-
     fn expect_return_statement(&mut self) -> Result<ReturnStatement, ParseError> {
-        let value_first = self.expect_expr()?;
+        let mut values = Vec::new();
 
-        let mut value_rest = Vec::new();
+        if self.peek() == &Token::Keyword(Keyword::End) {
+            return Ok(ReturnStatement { values });
+        }
+
         loop {
+            let value = self.expect_expr()?;
+            values.push(value);
+
             match self.peek() {
+                Token::Keyword(Keyword::End) => break,
+
                 Token::Keyword(Keyword::Comma) => {
                     self.next();
                 }
-                _ => break,
-            }
-            let value = self.expect_expr()?;
-            value_rest.push(value);
-        }
 
-        let values = Plural::from(value_first, value_rest);
+                token => {
+                    return Err(unexpected!(
+                        self.line(),
+                        token.to_owned(),
+                        [Keyword::Comma, Keyword::End],
+                        "`return` must be not be followed by another statement",
+                    ));
+                }
+            }
+        }
 
         Ok(ReturnStatement { values })
     }

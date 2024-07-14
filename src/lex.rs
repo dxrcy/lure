@@ -29,7 +29,7 @@ pub enum Literal {
 macro_rules! make_keyword {
     (
         $( $keyword:literal => $keyword_name:ident ),* $(,)?
-        <
+        ::
         $( $punct:literal   => $punct_name:ident ),* $(,)?
     ) => {
         #[derive(Clone, Copy, Debug, PartialEq)]
@@ -61,6 +61,7 @@ macro_rules! make_keyword {
     };
 }
 
+// Does not include `nil`, `true`, `false`
 make_keyword! {
     "module" => Module,
     "template" => Template,
@@ -85,7 +86,7 @@ make_keyword! {
     "and" => And,
     "or" => Or,
     "not" => Not,
-    <
+    :: // Punctuation
     "(" => ParenLeft,
     ")" => ParenRight,
     "{" => BraceLeft,

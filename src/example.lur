@@ -1,6 +1,3 @@
-let a = {
-    func abc(self, ..a)
-    end
-    a = 123,
-    awdij
-}
+func abc()
+    return awd.abc()+1
+end
