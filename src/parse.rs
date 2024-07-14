@@ -65,12 +65,7 @@ struct FuncExpr {
 
 type Ident = String;
 
-//TODO: Get better names for struct fields :)
-#[derive(Debug, PartialEq)]
-struct LValue {
-    origin: Ident,
-    parts: Vec<LValuePart>,
-}
+type LValue = FirstRest<Ident, LValuePart>;
 
 #[derive(Debug, PartialEq)]
 enum LValuePart {
@@ -79,11 +74,8 @@ enum LValuePart {
     Slice(Expr, Expr),
 }
 
-#[derive(Debug, PartialEq)]
-struct ExprPath {
-    origin: Ident,
-    rest: Vec<ExprPathPart>,
-}
+//TODO: Get better name !!!
+type ExprPath = FirstRest<Ident, ExprPathPart>;
 
 #[derive(Debug, PartialEq)]
 enum ExprPathPart {
@@ -211,15 +203,18 @@ struct TableItem {
     value: Box<Expr>,
 }
 
-// >=1 items
+//TODO: Get better name !!!
 #[derive(Debug, PartialEq)]
-struct Plural<T> {
+struct FirstRest<T, U> {
     first: T,
-    rest: Vec<T>,
+    rest: Vec<U>,
 }
 
-impl<T> Plural<T> {
-    pub fn from(first: T, rest: Vec<T>) -> Self {
+/// >=1 items
+type Plural<T> = FirstRest<T, T>;
+
+impl<T, U> FirstRest<T, U> {
+    pub fn from(first: T, rest: Vec<U>) -> Self {
         Self { first, rest }
     }
 }
@@ -983,7 +978,7 @@ impl TokenIter {
                     rest.push(part);
                 }
 
-                return Ok(Expr::Path(Box::new(ExprPath { origin, rest })));
+                return Ok(Expr::Path(Box::new(ExprPath::from(origin, rest))));
             }
 
             Token::Keyword(Keyword::Dash) => {
@@ -1159,7 +1154,7 @@ impl TokenIter {
             parts.push(part);
         }
 
-        Ok(LValue { origin, parts })
+        Ok(LValue::from(origin, parts))
     }
 
     //TODO: Refactor this ideally. it is not very nice
