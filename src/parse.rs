@@ -5,46 +5,46 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub struct SourceModule {
-    module: StatementList,
+    module: StatementBody,
     linked: Vec<Module>,
 }
 
 #[derive(Debug, PartialEq)]
 struct Module {
     name: ModuleName,
-    body: StatementList,
+    body: StatementBody,
 }
 
 type ModuleName = String;
 
-type StatementList = Vec<Statement>;
+type StatementBody = Vec<Statement>;
 
 #[derive(Debug, PartialEq)]
 enum Statement {
-    Expr(Expr),
-    Func(FuncStatement),
-    Let(Let),
-    Assign(Assign),
-    If(IfStatement),
-    While(While),
-    For(For),
     Module(Module),
     Template(Template),
-    Return(Return),
+    Func(FuncStatement),
+    Let(LetStatement),
+    Assign(AssignStatement),
+    If(IfStatement),
+    While(WhileStatement),
+    For(ForStatement),
+    Return(ReturnStatement),
     Break,
     Continue,
+    Expr(Expr),
 }
 
 #[derive(Debug, PartialEq)]
 struct Template {
     name: Ident,
-    items: Vec<TemplateItem>,
+    entries: Vec<TemplateItem>,
 }
 
 #[derive(Debug, PartialEq)]
 enum TemplateItem {
     Key {
-        name: Ident,
+        key: Ident,
         default_value: Option<Expr>,
     },
     Func(FuncStatement),
@@ -53,27 +53,37 @@ enum TemplateItem {
 #[derive(Debug, PartialEq)]
 struct FuncStatement {
     name: Ident,
-    params: DeclareParams,
-    body: StatementList,
+    params: FuncParams,
+    body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
 struct FuncExpr {
-    params: DeclareParams,
-    body: StatementList,
+    params: FuncParams,
+    body: StatementBody,
 }
 
 type Ident = String;
 
-type NamedValue<T> = FirstRest<Ident, T>;
+#[derive(Debug, PartialEq)]
+struct Chain<T> {
+    origin: Ident,
+    chain: Vec<T>,
+}
+
+impl<T> Chain<T> {
+    pub fn from(origin: Ident, chain: Vec<T>) -> Self {
+        Self { origin, chain }
+    }
+}
 
 /// Anything which can appear to the left of an assignment
 ///
 /// Note: Not used for `let` statements
-type LeftValue = NamedValue<LeftValuePart>;
+type AssignableChain = Chain<AssignableSegment>;
 
 #[derive(Debug, PartialEq)]
-enum LeftValuePart {
+enum AssignableSegment {
     Name(Ident),
     Index(Expr),
     Slice(Expr, Expr),
@@ -81,43 +91,42 @@ enum LeftValuePart {
 
 /// Any single value, which can be a combination of field or subscript accesses,
 /// and function calls
-type ExprValue = NamedValue<ExprValuePart>;
+type AccessibleChain = Chain<AccessibleSegment>;
 
 #[derive(Debug, PartialEq)]
-enum ExprValuePart {
+enum AccessibleSegment {
     Name(Ident),
     Index(Expr),
     Slice(Expr, Expr),
-    Call(CallParams),
+    Call(FuncArgs),
 }
 
 #[derive(Debug, Default, PartialEq)]
-struct DeclareParams {
+struct FuncParams {
     params: Vec<Ident>,
-    rest: Option<Ident>,
+    rest_param: Option<Ident>,
 }
 
-// Ik this should be called 'Args'. Who cares.
 #[derive(Debug, Default, PartialEq)]
-struct CallParams {
-    params: Vec<Expr>,
-    rest: Option<Box<Expr>>,
+struct FuncArgs {
+    args: Vec<Expr>,
+    spread_arg: Option<Box<Expr>>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Let {
+struct LetStatement {
     names: Plural<Ident>,
     value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
-struct Return {
+struct ReturnStatement {
     values: Plural<Expr>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Assign {
-    name: LeftValue,
+struct AssignStatement {
+    name: AssignableChain,
     value: Expr,
 }
 
@@ -125,12 +134,21 @@ struct Assign {
 enum Expr {
     Group(Box<Expr>),
     Literal(Literal),
-    Value(Box<ExprValue>),
-    UnaryOp(UnaryOp, Box<Expr>),
-    BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
+    Chain(Box<AccessibleChain>),
+    UnaryOp {
+        op: UnaryOp,
+        right: Box<Expr>,
+    },
+    BinaryOp {
+        op: BinaryOp,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+    Table {
+        table: TableExpr,
+        template: Option<AssignableChain>,
+    },
     If(IfExpr),
-    Table(Table),
-    TemplatedTable(LeftValue, Table),
     Func(FuncExpr),
 }
 
@@ -160,30 +178,29 @@ enum BinaryOp {
 
 #[derive(Debug, PartialEq)]
 struct IfStatement {
-    if_branch: Box<IfBranch>,
-    elif_branches: Vec<IfBranch>,
-    else_branch: Option<StatementList>,
+    if_branch: Box<ConditionalBranch>,
+    elif_branches: Vec<ConditionalBranch>,
+    else_branch: Option<StatementBody>,
 }
 
 #[derive(Debug, PartialEq)]
 struct IfExpr {
-    if_branch: Box<IfBranch>,
-    elif_branches: Vec<IfBranch>,
-    else_branch: StatementList,
+    if_branch: Box<ConditionalBranch>,
+    elif_branches: Vec<ConditionalBranch>,
+    else_branch: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-struct IfBranch {
+struct ConditionalBranch {
     condition: Expr,
-    body: StatementList,
+    body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-struct For {
-    key_name: Ident,
-    value_name: Option<Ident>,
+struct ForStatement {
+    names: Plural<Ident>,
     source: ForSource,
-    body: StatementList,
+    body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
@@ -193,34 +210,31 @@ enum ForSource {
 }
 
 #[derive(Debug, PartialEq)]
-struct While {
-    branch: IfBranch,
+struct WhileStatement {
+    branch: ConditionalBranch,
 }
 
 #[derive(Debug, Default, PartialEq)]
-struct Table {
-    items: Vec<TableItem>,
-    spread: Option<ExprValue>,
+struct TableExpr {
+    entries: Vec<TableEntry>,
+    base_table: Option<AccessibleChain>,
 }
 
 #[derive(Debug, PartialEq)]
-struct TableItem {
+struct TableEntry {
     key: Literal,
     value: Box<Expr>,
 }
 
-//TODO: Get better name !!!
+/// >=1 items
 #[derive(Debug, PartialEq)]
-struct FirstRest<T, U> {
+struct Plural<T> {
     first: T,
-    rest: Vec<U>,
+    rest: Vec<T>,
 }
 
-/// >=1 items
-type Plural<T> = FirstRest<T, T>;
-
-impl<T, U> FirstRest<T, U> {
-    pub fn from(first: T, rest: Vec<U>) -> Self {
+impl<T> Plural<T> {
+    pub fn from(first: T, rest: Vec<T>) -> Self {
         Self { first, rest }
     }
 }
@@ -282,7 +296,6 @@ impl PartialOrd for BinaryOp {
         Some(self.cmp(other))
     }
 }
-
 impl Ord for BinaryOp {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.precendence().cmp(&other.precendence())
@@ -311,11 +324,7 @@ impl TokenIter {
         }
     }
 
-    fn expect_keyword_reason(
-        &mut self,
-        keyword: Keyword,
-        reason: &'static str,
-    ) -> Result<(), ParseError> {
+    fn expect_keyword(&mut self, keyword: Keyword, reason: &'static str) -> Result<(), ParseError> {
         match self.next() {
             Token::Keyword(other) if other == &keyword => Ok(()),
             token => Err(unexpected!(
@@ -327,12 +336,12 @@ impl TokenIter {
         }
     }
 
-    fn expect_end(&mut self) -> Result<(), ParseError> {
-        self.expect_keyword_reason(Keyword::End, "Code block must be closed with `end` keyword")?;
+    fn expect_keyword_end(&mut self) -> Result<(), ParseError> {
+        self.expect_keyword(Keyword::End, "Code block must be closed with `end` keyword")?;
         Ok(())
     }
 
-    fn expect_body(&mut self) -> Result<StatementList, ParseError> {
+    fn expect_body(&mut self) -> Result<StatementBody, ParseError> {
         let mut statements = Vec::new();
 
         loop {
@@ -353,7 +362,7 @@ impl TokenIter {
                 }
                 Token::Keyword(Keyword::If) => {
                     self.next();
-                    self.expect_if_statement()?
+                    Statement::If(self.expect_if_statement()?)
                 }
                 Token::Keyword(Keyword::For) => {
                     self.next();
@@ -365,11 +374,11 @@ impl TokenIter {
                 }
                 Token::Keyword(Keyword::Module) => {
                     self.next();
-                    self.expect_module_statement()?
+                    self.expect_module()?
                 }
                 Token::Keyword(Keyword::Template) => {
                     self.next();
-                    self.expect_template_statement()?
+                    self.expect_template()?
                 }
 
                 Token::Keyword(Keyword::Break) => {
@@ -387,11 +396,12 @@ impl TokenIter {
 
                 token => {
                     let token = token.to_owned();
-                    match self.try_parse_assign() {
+                    match self.try_assign_statement() {
                         Some(statement) => statement?,
                         None => {
                             println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
-                            self.expect_expr_statement()?
+                            let expr = self.expect_expr()?;
+                            Statement::Expr(expr)
                         }
                     }
                 }
@@ -423,7 +433,7 @@ impl TokenIter {
 
         let values = Plural::from(value_first, value_rest);
 
-        Ok(Statement::Return(Return { values }))
+        Ok(Statement::Return(ReturnStatement { values }))
     }
 
     fn expect_let_statement(&mut self) -> Result<Statement, ParseError> {
@@ -443,30 +453,30 @@ impl TokenIter {
 
         let names = Plural::from(name_first, name_rest);
 
-        self.expect_keyword_reason(
+        self.expect_keyword(
             Keyword::SingleEqual,
             "`let` declaration must include `=` to instantiate variable",
         )?;
 
         let value = self.expect_expr()?;
 
-        Ok(Statement::Let(Let { names, value }))
+        Ok(Statement::Let(LetStatement { names, value }))
     }
 
-    fn expect_module_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_module(&mut self) -> Result<Statement, ParseError> {
         let name = self.expect_ident()?;
 
         let body = self.expect_body()?;
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
         Ok(Statement::Module(Module { name, body }))
     }
 
-    fn expect_template_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_template(&mut self) -> Result<Statement, ParseError> {
         let name = self.expect_ident()?;
 
-        self.expect_keyword_reason(Keyword::BraceLeft, "`template` statement must include `{`")?;
+        self.expect_keyword(Keyword::BraceLeft, "`template` statement must include `{`")?;
 
         let mut items = Vec::new();
         loop {
@@ -492,7 +502,7 @@ impl TokenIter {
 
                         Token::Keyword(Keyword::SingleEqual) => {
                             let value = self.expect_expr()?;
-                            self.expect_keyword_reason(
+                            self.expect_keyword(
                                 Keyword::Comma,
                                 "Template key with default value must be followed with `,`",
                             )?;
@@ -509,7 +519,7 @@ impl TokenIter {
                         }
                     };
                     items.push(TemplateItem::Key {
-                        name,
+                        key: name,
                         default_value,
                     });
                 }
@@ -525,22 +535,25 @@ impl TokenIter {
             }
         }
 
-        Ok(Statement::Template(Template { name, items }))
+        Ok(Statement::Template(Template {
+            name,
+            entries: items,
+        }))
     }
 
     fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
         let name = self.expect_ident()?;
 
-        self.expect_keyword_reason(
+        self.expect_keyword(
             Keyword::ParenLeft,
             "`func` statement must include parameter list between parentheses",
         )?;
 
-        let params = self.expect_param_list()?;
+        let params = self.expect_params()?;
 
         let body = self.expect_body()?;
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
         Ok(Statement::Func(FuncStatement { name, params, body }))
     }
@@ -564,17 +577,17 @@ impl TokenIter {
             }
         }
 
-        let params = self.expect_param_list()?;
+        let params = self.expect_params()?;
 
         let body = self.expect_body()?;
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
         Ok(Expr::Func(FuncExpr { params, body }))
     }
 
-    fn expect_param_list(&mut self) -> Result<DeclareParams, ParseError> {
-        let mut params = DeclareParams::default();
+    fn expect_params(&mut self) -> Result<FuncParams, ParseError> {
+        let mut params = FuncParams::default();
         loop {
             match self.next() {
                 Token::Keyword(Keyword::ParenRight) => break,
@@ -591,8 +604,8 @@ impl TokenIter {
                             ))
                         }
                     };
-                    params.rest = Some(ident);
-                    self.expect_keyword_reason(
+                    params.rest_param = Some(ident);
+                    self.expect_keyword(
                         Keyword::ParenRight,
                         "Spread parameter must be last parameter",
                     )?;
@@ -629,14 +642,14 @@ impl TokenIter {
         Ok(params)
     }
 
-    fn expect_if(&mut self) -> Result<IfStatement, ParseError> {
+    fn expect_if_statement(&mut self) -> Result<IfStatement, ParseError> {
         let condition = self.expect_expr()?;
-        self.expect_keyword_reason(
+        self.expect_keyword(
             Keyword::Then,
             "`if` condition must be followed with `then` keyword",
         )?;
         let body = self.expect_body()?;
-        let if_branch = Box::new(IfBranch { condition, body });
+        let if_branch = Box::new(ConditionalBranch { condition, body });
 
         let mut elif_branches = Vec::new();
         loop {
@@ -644,12 +657,12 @@ impl TokenIter {
                 Token::Keyword(Keyword::Elif) => {
                     self.next();
                     let condition = self.expect_expr()?;
-                    self.expect_keyword_reason(
+                    self.expect_keyword(
                         Keyword::Then,
                         "`elif` condition must be followed with `then` keyword",
                     )?;
                     let body = self.expect_body()?;
-                    elif_branches.push(IfBranch { condition, body });
+                    elif_branches.push(ConditionalBranch { condition, body });
                 }
                 Token::Keyword(Keyword::Else) => break,
                 Token::Keyword(Keyword::End) => break,
@@ -681,7 +694,7 @@ impl TokenIter {
             }
         };
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
         Ok(IfStatement {
             if_branch,
@@ -690,13 +703,8 @@ impl TokenIter {
         })
     }
 
-    fn expect_if_statement(&mut self) -> Result<Statement, ParseError> {
-        let if_statement = self.expect_if()?;
-        Ok(Statement::If(if_statement))
-    }
-
     fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
-        let if_statement = self.expect_if()?;
+        let if_statement = self.expect_if_statement()?;
 
         let IfStatement {
             if_branch,
@@ -723,22 +731,27 @@ impl TokenIter {
     fn expect_for_statement(&mut self) -> Result<Statement, ParseError> {
         let key_name = self.expect_ident()?;
 
-        let value_name = match self.peek() {
-            Token::Keyword(Keyword::Comma) => {
-                self.next();
-                Some(self.expect_ident()?)
-            }
-            _ => None,
-        };
+        let mut value_names = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Keyword(Keyword::Comma) => {
+                    self.next();
+                    let name = self.expect_ident()?;
+                    value_names.push(name);
+                }
+                _ => break,
+            };
+        }
+        let names = Plural::from(key_name, value_names);
 
-        self.expect_keyword_reason(Keyword::In, "`for` statement must include `in` keyword")?;
+        self.expect_keyword(Keyword::In, "`for` statement must include `in` keyword")?;
 
         let from = self.expect_expr()?;
 
         let source = match self.next() {
             Token::Keyword(Keyword::To) => {
                 let to = self.expect_expr()?;
-                self.expect_keyword_reason(
+                self.expect_keyword(
                     Keyword::Do,
                     "`for` statement must include `do` keyword after iteration range",
                 )?;
@@ -758,11 +771,10 @@ impl TokenIter {
 
         let body = self.expect_body()?;
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
-        Ok(Statement::For(For {
-            key_name,
-            value_name,
+        Ok(Statement::For(ForStatement {
+            names,
             source,
             body,
         }))
@@ -771,23 +783,18 @@ impl TokenIter {
     fn expect_while_statement(&mut self) -> Result<Statement, ParseError> {
         let condition = self.expect_expr()?;
 
-        self.expect_keyword_reason(
+        self.expect_keyword(
             Keyword::Do,
             "`while` statement must include `do` keyword following condition expression",
         )?;
 
         let body = self.expect_body()?;
 
-        self.expect_end()?;
+        self.expect_keyword_end()?;
 
-        Ok(Statement::While(While {
-            branch: IfBranch { condition, body },
+        Ok(Statement::While(WhileStatement {
+            branch: ConditionalBranch { condition, body },
         }))
-    }
-
-    fn expect_expr_statement(&mut self) -> Result<Statement, ParseError> {
-        let expr = self.expect_expr()?;
-        Ok(Statement::Expr(expr))
     }
 
     fn expect_ident(&mut self) -> Result<Ident, ParseError> {
@@ -803,7 +810,7 @@ impl TokenIter {
     }
 
     fn expect_expr(&mut self) -> Result<Expr, ParseError> {
-        let left = self.expect_expr_part()?;
+        let left = self.expect_subexpr()?;
 
         let left_op = match self.peek() {
             Token::Keyword(Keyword::Plus) => BinaryOp::Add,
@@ -835,6 +842,7 @@ impl TokenIter {
             }
         };
         self.next();
+        let left = Box::new(left);
 
         let right = self.expect_expr()?;
 
@@ -843,27 +851,41 @@ impl TokenIter {
             // UNLESS the inner (rightmost) operation has higher precedence
             // Note that equal-precendence operations will always swap, to
             // maintain default left-to-right order
-            Expr::BinaryOp(right_op, middle, right) if right_op >= left_op => {
+            Expr::BinaryOp {
+                op: right_op,
+                left: middle,
+                right,
+            } if right_op >= left_op => {
                 // Preserve literal order of left-middle-right, but make the
                 // leftmost expression the nested one
-                return Ok(Expr::BinaryOp(
-                    right_op,
-                    Box::new(Expr::BinaryOp(left_op, Box::new(left), middle)),
+                let left = Box::new(Expr::BinaryOp {
+                    op: left_op,
+                    left,
+                    right: middle,
+                });
+                return Ok(Expr::BinaryOp {
+                    op: right_op,
+                    left,
                     right,
-                ));
+                });
             }
 
             _ => {
-                return Ok(Expr::BinaryOp(left_op, Box::new(left), Box::new(right)));
+                let right = Box::new(right);
+                return Ok(Expr::BinaryOp {
+                    op: left_op,
+                    left,
+                    right,
+                });
             }
         }
     }
 
-    fn expect_expr_part(&mut self) -> Result<Expr, ParseError> {
+    fn expect_subexpr(&mut self) -> Result<Expr, ParseError> {
         match self.next() {
             Token::Keyword(Keyword::ParenLeft) => {
                 let expr = self.expect_expr()?;
-                self.expect_keyword_reason(
+                self.expect_keyword(
                     Keyword::ParenRight,
                     "Unmatched parenthesis in expression group",
                 )?;
@@ -876,37 +898,43 @@ impl TokenIter {
 
             Token::Ident(ident) => {
                 let origin = ident.to_owned();
-                let value = self.expect_expr_value(origin)?;
-                return Ok(Expr::Value(Box::new(value)));
+                let value = self.expect_accessible_chain(origin)?;
+                return Ok(Expr::Chain(Box::new(value)));
             }
 
             Token::Keyword(Keyword::Dash) => {
-                return Ok(Expr::UnaryOp(
-                    UnaryOp::Negative,
-                    Box::new(self.expect_expr()?),
-                ));
+                return Ok(Expr::UnaryOp {
+                    op: UnaryOp::Negative,
+                    right: Box::new(self.expect_expr()?),
+                });
             }
             Token::Keyword(Keyword::Not) => {
-                return Ok(Expr::UnaryOp(UnaryOp::Not, Box::new(self.expect_expr()?)));
+                return Ok(Expr::UnaryOp {
+                    op: UnaryOp::Not,
+                    right: Box::new(self.expect_expr()?),
+                });
             }
 
             Token::Keyword(Keyword::BraceLeft) => {
-                let table = self.expect_table()?;
-                return Ok(table);
+                let table = self.expect_table_expr()?;
+                return Ok(Expr::Table {
+                    table,
+                    template: None,
+                });
             }
 
             Token::Keyword(Keyword::As) => {
                 let ident = self.expect_ident()?;
-                let name = self.expect_left_value(ident)?;
-                self.expect_keyword_reason(
+                let name = self.expect_assignable_chain(ident)?;
+                self.expect_keyword(
                     Keyword::BraceLeft,
                     "Template name must be followed by table",
                 )?;
-                let table = self.expect_table()?;
-                let Expr::Table(table) = table else {
-                    panic!("Expression should be `Expr::Table`");
-                };
-                return Ok(Expr::TemplatedTable(name, table));
+                let table = self.expect_table_expr()?;
+                return Ok(Expr::Table {
+                    table,
+                    template: Some(name),
+                });
             }
 
             Token::Keyword(Keyword::If) => {
@@ -935,9 +963,9 @@ impl TokenIter {
         }
     }
 
-    fn expect_expr_value(&mut self, origin: Ident) -> Result<ExprValue, ParseError> {
+    fn expect_accessible_chain(&mut self, origin: Ident) -> Result<AccessibleChain, ParseError> {
         //TODO: Save index
-        // ^ ?????
+        // ^ ????? Why?
 
         let mut rest = Vec::new();
         loop {
@@ -947,7 +975,7 @@ impl TokenIter {
                     match self.next() {
                         Token::Ident(ident) => {
                             let name = ident.to_owned();
-                            ExprValuePart::Name(name)
+                            AccessibleSegment::Name(name)
                         }
                         token => {
                             let reason = match token {
@@ -970,14 +998,14 @@ impl TokenIter {
                     self.next();
                     let index = self.expect_expr()?;
                     match self.next() {
-                        Token::Keyword(Keyword::BracketRight) => ExprValuePart::Index(index),
+                        Token::Keyword(Keyword::BracketRight) => AccessibleSegment::Index(index),
                         Token::Keyword(Keyword::Comma) => {
                             let end = self.expect_expr()?;
-                            self.expect_keyword_reason(
+                            self.expect_keyword(
                                 Keyword::BracketRight,
                                 "Subscript expression should end with `]`",
                             )?;
-                            ExprValuePart::Slice(index, end)
+                            AccessibleSegment::Slice(index, end)
                         }
                         token => {
                             return Err(unexpected!(
@@ -994,7 +1022,7 @@ impl TokenIter {
                 Token::Keyword(Keyword::ParenLeft) => {
                     self.next();
 
-                    let mut params = CallParams::default();
+                    let mut params = FuncArgs::default();
                     loop {
                         match self.peek() {
                             Token::Keyword(Keyword::ParenRight) => {
@@ -1005,8 +1033,8 @@ impl TokenIter {
                             Token::Keyword(Keyword::Spread) => {
                                 self.next();
                                 let expr = self.expect_expr()?;
-                                params.rest = Some(Box::new(expr));
-                                self.expect_keyword_reason(
+                                params.spread_arg = Some(Box::new(expr));
+                                self.expect_keyword(
                                     Keyword::ParenRight,
                                     "Spread argument must be last argument",
                                 )?;
@@ -1015,7 +1043,7 @@ impl TokenIter {
 
                             _ => {
                                 let expr = self.expect_expr()?;
-                                params.params.push(expr);
+                                params.args.push(expr);
                                 match self.next() {
                                     Token::Keyword(Keyword::Comma) => (),
                                     Token::Keyword(Keyword::ParenRight) => break,
@@ -1032,7 +1060,7 @@ impl TokenIter {
                         }
                     }
 
-                    ExprValuePart::Call(params)
+                    AccessibleSegment::Call(params)
                 }
 
                 _ => {
@@ -1042,17 +1070,17 @@ impl TokenIter {
             rest.push(part);
         }
 
-        return Ok(ExprValue::from(origin, rest));
+        return Ok(AccessibleChain::from(origin, rest));
     }
 
-    fn expect_table(&mut self) -> Result<Expr, ParseError> {
-        let mut table = Table::default();
+    fn expect_table_expr(&mut self) -> Result<TableExpr, ParseError> {
+        let mut table = TableExpr::default();
         let mut implicit_key = 0;
 
         // Empty table
         if self.peek() == &Token::Keyword(Keyword::BraceRight) {
             self.next();
-            return Ok(Expr::Table(table));
+            return Ok(table);
         }
 
         loop {
@@ -1061,9 +1089,9 @@ impl TokenIter {
             if self.peek() == &Token::Keyword(Keyword::Spread) {
                 self.next();
                 let origin = self.expect_ident()?;
-                let value = self.expect_expr_value(origin)?;
-                table.spread = Some(value);
-                self.expect_keyword_reason(Keyword::BraceRight, "Spread key must be last key")?;
+                let value = self.expect_accessible_chain(origin)?;
+                table.base_table = Some(value);
+                self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
                 break;
             }
 
@@ -1092,7 +1120,7 @@ impl TokenIter {
 
             let value = Box::new(self.expect_expr()?);
 
-            table.items.push(TableItem { key, value });
+            table.entries.push(TableEntry { key, value });
 
             match self.next() {
                 Token::Keyword(Keyword::Comma) => {
@@ -1113,10 +1141,10 @@ impl TokenIter {
             }
         }
 
-        Ok(Expr::Table(table))
+        Ok(table)
     }
 
-    fn expect_left_value(&mut self, origin: Ident) -> Result<LeftValue, ParseError> {
+    fn expect_assignable_chain(&mut self, origin: Ident) -> Result<AssignableChain, ParseError> {
         let mut parts = Vec::new();
 
         loop {
@@ -1124,7 +1152,7 @@ impl TokenIter {
                 Token::Keyword(Keyword::Dot) => {
                     self.next();
                     match self.next() {
-                        Token::Ident(ident) => LeftValuePart::Name(ident.to_owned()),
+                        Token::Ident(ident) => AssignableSegment::Name(ident.to_owned()),
                         token => {
                             return Err(unexpected!(
                                 self.line(),
@@ -1147,14 +1175,14 @@ impl TokenIter {
                         end = Some(self.expect_expr()?);
                     }
 
-                    self.expect_keyword_reason(
+                    self.expect_keyword(
                         Keyword::BracketRight,
                         "Subscript must be delimited by `]`",
                     )?;
 
                     match end {
-                        None => LeftValuePart::Index(start),
-                        Some(end) => LeftValuePart::Slice(start, end),
+                        None => AssignableSegment::Index(start),
+                        Some(end) => AssignableSegment::Slice(start, end),
                     }
                 }
 
@@ -1163,11 +1191,11 @@ impl TokenIter {
             parts.push(part);
         }
 
-        Ok(LeftValue::from(origin, parts))
+        Ok(AssignableChain::from(origin, parts))
     }
 
     //TODO: Refactor this ideally. it is not very nice
-    fn try_parse_assign(&mut self) -> Option<Result<Statement, ParseError>> {
+    fn try_assign_statement(&mut self) -> Option<Result<Statement, ParseError>> {
         // We don't yet know if it is an assignment statement or not
         let index = self.get_index();
 
@@ -1180,7 +1208,7 @@ impl TokenIter {
             }
         };
 
-        let Ok(left_value) = self.expect_left_value(origin) else {
+        let Ok(left_value) = self.expect_assignable_chain(origin) else {
             self.set_index(index);
             return None;
         };
@@ -1198,7 +1226,7 @@ impl TokenIter {
             Err(err) => return Some(Err(err)),
         };
 
-        Some(Ok(Statement::Assign(Assign {
+        Some(Ok(Statement::Assign(AssignStatement {
             name: left_value,
             value,
         })))
