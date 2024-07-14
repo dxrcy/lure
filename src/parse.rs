@@ -38,11 +38,11 @@ enum Statement {
 #[derive(Debug, PartialEq)]
 struct Template {
     name: Ident,
-    entries: Vec<TemplateItem>,
+    entries: Vec<TemplateEntry>,
 }
 
 #[derive(Debug, PartialEq)]
-enum TemplateItem {
+enum TemplateEntry {
     Key {
         key: Ident,
         default_value: Option<Expr>,
@@ -354,11 +354,11 @@ impl TokenIter {
 
                 Token::Keyword(Keyword::Let) => {
                     self.next();
-                    self.expect_let_statement()?
+                    Statement::Let(self.expect_let_statement()?)
                 }
                 Token::Keyword(Keyword::Func) => {
                     self.next();
-                    self.expect_func_statement()?
+                    Statement::Func(self.expect_func_statement()?)
                 }
                 Token::Keyword(Keyword::If) => {
                     self.next();
@@ -366,19 +366,19 @@ impl TokenIter {
                 }
                 Token::Keyword(Keyword::For) => {
                     self.next();
-                    self.expect_for_statement()?
+                    Statement::For(self.expect_for_statement()?)
                 }
                 Token::Keyword(Keyword::While) => {
                     self.next();
-                    self.expect_while_statement()?
+                    Statement::While(self.expect_while_statement()?)
                 }
                 Token::Keyword(Keyword::Module) => {
                     self.next();
-                    self.expect_module()?
+                    Statement::Module(self.expect_module()?)
                 }
                 Token::Keyword(Keyword::Template) => {
                     self.next();
-                    self.expect_template()?
+                    Statement::Template(self.expect_template()?)
                 }
 
                 Token::Keyword(Keyword::Break) => {
@@ -391,17 +391,19 @@ impl TokenIter {
                 }
                 Token::Keyword(Keyword::Return) => {
                     self.next();
-                    self.expect_return_statement()?
+                    Statement::Return(self.expect_return_statement()?)
                 }
 
                 token => {
                     let token = token.to_owned();
                     match self.try_assign_statement() {
-                        Some(statement) => statement?,
+                        Some(statement) => {
+                            let statement = statement?;
+                            Statement::Assign(statement)
+                        }
                         None => {
                             println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
-                            let expr = self.expect_expr()?;
-                            Statement::Expr(expr)
+                            Statement::Expr(self.expect_expr()?)
                         }
                     }
                 }
@@ -416,7 +418,7 @@ impl TokenIter {
     //TODO: Maybe have all of these return their actual type, not just
     // `Statement`. Then wrap in statement after 'expecting'.
 
-    fn expect_return_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_return_statement(&mut self) -> Result<ReturnStatement, ParseError> {
         let value_first = self.expect_expr()?;
 
         let mut value_rest = Vec::new();
@@ -433,10 +435,10 @@ impl TokenIter {
 
         let values = Plural::from(value_first, value_rest);
 
-        Ok(Statement::Return(ReturnStatement { values }))
+        Ok(ReturnStatement { values })
     }
 
-    fn expect_let_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_let_statement(&mut self) -> Result<LetStatement, ParseError> {
         let name_first = self.expect_ident()?;
 
         let mut name_rest = Vec::new();
@@ -460,20 +462,20 @@ impl TokenIter {
 
         let value = self.expect_expr()?;
 
-        Ok(Statement::Let(LetStatement { names, value }))
+        Ok(LetStatement { names, value })
     }
 
-    fn expect_module(&mut self) -> Result<Statement, ParseError> {
+    fn expect_module(&mut self) -> Result<Module, ParseError> {
         let name = self.expect_ident()?;
 
         let body = self.expect_body()?;
 
         self.expect_keyword_end()?;
 
-        Ok(Statement::Module(Module { name, body }))
+        Ok(Module { name, body })
     }
 
-    fn expect_template(&mut self) -> Result<Statement, ParseError> {
+    fn expect_template(&mut self) -> Result<Template, ParseError> {
         let name = self.expect_ident()?;
 
         self.expect_keyword(Keyword::BraceLeft, "`template` statement must include `{`")?;
@@ -487,10 +489,7 @@ impl TokenIter {
 
                 Token::Keyword(Keyword::Func) => {
                     let func = self.expect_func_statement()?;
-                    let Statement::Func(func) = func else {
-                        panic!("Statement should be `Statement::Func`");
-                    };
-                    items.push(TemplateItem::Func(func));
+                    items.push(TemplateEntry::Func(func));
                 }
 
                 Token::Ident(ident) => {
@@ -518,7 +517,7 @@ impl TokenIter {
                             ))
                         }
                     };
-                    items.push(TemplateItem::Key {
+                    items.push(TemplateEntry::Key {
                         key: name,
                         default_value,
                     });
@@ -535,13 +534,13 @@ impl TokenIter {
             }
         }
 
-        Ok(Statement::Template(Template {
+        Ok(Template {
             name,
             entries: items,
-        }))
+        })
     }
 
-    fn expect_func_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_func_statement(&mut self) -> Result<FuncStatement, ParseError> {
         let name = self.expect_ident()?;
 
         self.expect_keyword(
@@ -555,10 +554,10 @@ impl TokenIter {
 
         self.expect_keyword_end()?;
 
-        Ok(Statement::Func(FuncStatement { name, params, body }))
+        Ok(FuncStatement { name, params, body })
     }
 
-    fn expect_func_expr(&mut self) -> Result<Expr, ParseError> {
+    fn expect_func_expr(&mut self) -> Result<FuncExpr, ParseError> {
         match self.next() {
             Token::Keyword(Keyword::ParenLeft) => (),
             token => {
@@ -583,7 +582,7 @@ impl TokenIter {
 
         self.expect_keyword_end()?;
 
-        Ok(Expr::Func(FuncExpr { params, body }))
+        Ok(FuncExpr { params, body })
     }
 
     fn expect_params(&mut self) -> Result<FuncParams, ParseError> {
@@ -703,7 +702,7 @@ impl TokenIter {
         })
     }
 
-    fn expect_if_expr(&mut self) -> Result<Expr, ParseError> {
+    fn expect_if_expr(&mut self) -> Result<IfExpr, ParseError> {
         let if_statement = self.expect_if_statement()?;
 
         let IfStatement {
@@ -721,14 +720,14 @@ impl TokenIter {
             ));
         };
 
-        Ok(Expr::If(IfExpr {
+        Ok(IfExpr {
             if_branch,
             elif_branches,
             else_branch,
-        }))
+        })
     }
 
-    fn expect_for_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_for_statement(&mut self) -> Result<ForStatement, ParseError> {
         let key_name = self.expect_ident()?;
 
         let mut value_names = Vec::new();
@@ -773,14 +772,14 @@ impl TokenIter {
 
         self.expect_keyword_end()?;
 
-        Ok(Statement::For(ForStatement {
+        Ok(ForStatement {
             names,
             source,
             body,
-        }))
+        })
     }
 
-    fn expect_while_statement(&mut self) -> Result<Statement, ParseError> {
+    fn expect_while_statement(&mut self) -> Result<WhileStatement, ParseError> {
         let condition = self.expect_expr()?;
 
         self.expect_keyword(
@@ -792,9 +791,9 @@ impl TokenIter {
 
         self.expect_keyword_end()?;
 
-        Ok(Statement::While(WhileStatement {
+        Ok(WhileStatement {
             branch: ConditionalBranch { condition, body },
-        }))
+        })
     }
 
     fn expect_ident(&mut self) -> Result<Ident, ParseError> {
@@ -938,11 +937,11 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::If) => {
-                return self.expect_if_expr();
+                return Ok(Expr::If(self.expect_if_expr()?));
             }
 
             Token::Keyword(Keyword::Func) => {
-                return self.expect_func_expr();
+                return Ok(Expr::Func(self.expect_func_expr()?));
             }
 
             token => {
@@ -1195,7 +1194,7 @@ impl TokenIter {
     }
 
     //TODO: Refactor this ideally. it is not very nice
-    fn try_assign_statement(&mut self) -> Option<Result<Statement, ParseError>> {
+    fn try_assign_statement(&mut self) -> Option<Result<AssignStatement, ParseError>> {
         // We don't yet know if it is an assignment statement or not
         let index = self.get_index();
 
@@ -1226,9 +1225,9 @@ impl TokenIter {
             Err(err) => return Some(Err(err)),
         };
 
-        Some(Ok(Statement::Assign(AssignStatement {
+        Some(Ok(AssignStatement {
             name: left_value,
             value,
-        })))
+        }))
     }
 }
