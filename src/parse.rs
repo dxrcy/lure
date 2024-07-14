@@ -79,6 +79,20 @@ enum LValuePart {
     Slice(Expr, Expr),
 }
 
+#[derive(Debug, PartialEq)]
+struct ExprPath {
+    origin: Ident,
+    rest: Vec<ExprPathPart>,
+}
+
+#[derive(Debug, PartialEq)]
+enum ExprPathPart {
+    Name { name: Ident },
+    Call { params: CallParams },
+    Index { index: Expr },
+    Slice { start: Expr, end: Expr },
+}
+
 #[derive(Debug, Default, PartialEq)]
 struct DeclareParams {
     params: Vec<Ident>,
@@ -113,8 +127,7 @@ struct Assign {
 enum Expr {
     Group(Box<Expr>),
     Literal(Literal),
-    LValue(LValue),
-    Call(LValue, CallParams),
+    Path(Box<ExprPath>),
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     If(IfExpr),
@@ -862,58 +875,115 @@ impl TokenIter {
 
             Token::Ident(ident) => {
                 //TODO: Save index
-                let ident = ident.to_owned();
-                let lvalue = self.expect_lvalue(ident)?;
+                let origin = ident.to_owned();
 
-                match self.peek() {
-                    Token::Keyword(Keyword::ParenLeft) => {
-                        self.next();
-
-                        let mut params = CallParams::default();
-                        loop {
-                            match self.peek() {
-                                Token::Keyword(Keyword::ParenRight) => {
-                                    self.next();
-                                    break;
+                let mut rest = Vec::new();
+                loop {
+                    let part = match self.peek() {
+                        Token::Keyword(Keyword::Dot) => {
+                            self.next();
+                            match self.next() {
+                                Token::Ident(ident) => {
+                                    let name = ident.to_owned();
+                                    ExprPathPart::Name { name }
                                 }
-
-                                Token::Keyword(Keyword::Spread) => {
-                                    self.next();
-                                    let expr = self.expect_expr()?;
-                                    params.rest = Some(Box::new(expr));
-                                    self.expect_keyword_reason(
-                                        Keyword::ParenRight,
-                                        "Spread argument must be last argument",
-                                    )?;
-                                    break;
-                                }
-
-                                _ => {
-                                    let expr = self.expect_expr()?;
-                                    params.params.push(expr);
-                                    match self.next() {
-                                        Token::Keyword(Keyword::Comma) => (),
-                                        Token::Keyword(Keyword::ParenRight) => break,
-                                        token => {
-                                            return Err(unexpected!(
-                                                self.line(),
-                                                token.to_owned(),
-                                                [Keyword::Comma, Keyword::ParenRight],
-                                                "Arguments must be separated with commas",
-                                            ))
+                                token => {
+                                    let reason = match token {
+                                        Token::Keyword(Keyword::BracketLeft) => {
+                                            "Subscript expression should not directly follow `.`"
                                         }
-                                    }
+                                        _ => "",
+                                    };
+                                    return Err(unexpected!(
+                                        self.line(),
+                                        token.to_owned(),
+                                        ["table key or item name"],
+                                        reason,
+                                    ));
                                 }
                             }
                         }
 
-                        return Ok(Expr::Call(lvalue, params));
-                    }
+                        Token::Keyword(Keyword::BracketLeft) => {
+                            self.next();
+                            let index = self.expect_expr()?;
+                            match self.next() {
+                                Token::Keyword(Keyword::BracketRight) => {
+                                    ExprPathPart::Index { index }
+                                }
+                                Token::Keyword(Keyword::Comma) => {
+                                    let start = index;
+                                    let end = self.expect_expr()?;
+                                    self.expect_keyword_reason(
+                                        Keyword::BracketRight,
+                                        "Subscript expression should end with `]`",
+                                    )?;
+                                    ExprPathPart::Slice { start, end }
+                                }
+                                token => {
+                                    return Err(unexpected!(
+                                        self.line(),
+                                        token.to_owned(),
+                                        // Or rest of expression ?
+                                        [Keyword::BracketRight, Keyword::Comma],
+                                        "Subscript expression should end with `]`",
+                                    ));
+                                }
+                            }
+                        }
 
-                    _ => {
-                        return Ok(Expr::LValue(lvalue));
-                    }
+                        Token::Keyword(Keyword::ParenLeft) => {
+                            self.next();
+
+                            let mut params = CallParams::default();
+                            loop {
+                                match self.peek() {
+                                    Token::Keyword(Keyword::ParenRight) => {
+                                        self.next();
+                                        break;
+                                    }
+
+                                    Token::Keyword(Keyword::Spread) => {
+                                        self.next();
+                                        let expr = self.expect_expr()?;
+                                        params.rest = Some(Box::new(expr));
+                                        self.expect_keyword_reason(
+                                            Keyword::ParenRight,
+                                            "Spread argument must be last argument",
+                                        )?;
+                                        break;
+                                    }
+
+                                    _ => {
+                                        let expr = self.expect_expr()?;
+                                        params.params.push(expr);
+                                        match self.next() {
+                                            Token::Keyword(Keyword::Comma) => (),
+                                            Token::Keyword(Keyword::ParenRight) => break,
+                                            token => {
+                                                return Err(unexpected!(
+                                                    self.line(),
+                                                    token.to_owned(),
+                                                    [Keyword::Comma, Keyword::ParenRight],
+                                                    "Arguments must be separated with commas",
+                                                ))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            ExprPathPart::Call { params }
+                        }
+
+                        _ => {
+                            break;
+                        }
+                    };
+                    rest.push(part);
                 }
+
+                return Ok(Expr::Path(Box::new(ExprPath { origin, rest })));
             }
 
             Token::Keyword(Keyword::Dash) => {

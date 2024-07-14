@@ -3,10 +3,12 @@ use std::{fmt, fmt::Display};
 
 //TODO: Change name
 #[derive(Debug)]
-pub struct TokenRef {
-    pub token: Token,
+pub struct Ref<T> {
+    pub token: T,
     pub line: usize,
 }
+
+pub type TokenRef = Ref<Token>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
