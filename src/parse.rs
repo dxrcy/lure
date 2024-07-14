@@ -65,24 +65,30 @@ struct FuncExpr {
 
 type Ident = String;
 
-type LValue = FirstRest<Ident, LValuePart>;
+type NamedValue<T> = FirstRest<Ident, T>;
+
+/// Anything which can appear to the left of an assignment
+///
+/// Note: Not used for `let` statements
+type LeftValue = NamedValue<LeftValuePart>;
 
 #[derive(Debug, PartialEq)]
-enum LValuePart {
-    Ident(Ident),
+enum LeftValuePart {
+    Name(Ident),
     Index(Expr),
     Slice(Expr, Expr),
 }
 
-//TODO: Get better name !!!
-type ExprPath = FirstRest<Ident, ExprPathPart>;
+/// Any single value, which can be a combination of field or subscript accesses,
+/// and function calls
+type ExprValue = NamedValue<ExprValuePart>;
 
 #[derive(Debug, PartialEq)]
-enum ExprPathPart {
-    Name { name: Ident },
-    Call { params: CallParams },
-    Index { index: Expr },
-    Slice { start: Expr, end: Expr },
+enum ExprValuePart {
+    Name(Ident),
+    Index(Expr),
+    Slice(Expr, Expr),
+    Call(CallParams),
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -111,7 +117,7 @@ struct Return {
 
 #[derive(Debug, PartialEq)]
 struct Assign {
-    lvalue: LValue,
+    name: LeftValue,
     value: Expr,
 }
 
@@ -119,12 +125,12 @@ struct Assign {
 enum Expr {
     Group(Box<Expr>),
     Literal(Literal),
-    Path(Box<ExprPath>),
+    Value(Box<ExprValue>),
     UnaryOp(UnaryOp, Box<Expr>),
     BinaryOp(BinaryOp, Box<Expr>, Box<Expr>),
     If(IfExpr),
     Table(Table),
-    TemplateTable(LValue, Table),
+    TemplatedTable(LeftValue, Table),
     Func(FuncExpr),
 }
 
@@ -194,7 +200,7 @@ struct While {
 #[derive(Debug, Default, PartialEq)]
 struct Table {
     items: Vec<TableItem>,
-    spread: Option<LValue>,
+    spread: Option<ExprValue>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -869,116 +875,9 @@ impl TokenIter {
             }
 
             Token::Ident(ident) => {
-                //TODO: Save index
                 let origin = ident.to_owned();
-
-                let mut rest = Vec::new();
-                loop {
-                    let part = match self.peek() {
-                        Token::Keyword(Keyword::Dot) => {
-                            self.next();
-                            match self.next() {
-                                Token::Ident(ident) => {
-                                    let name = ident.to_owned();
-                                    ExprPathPart::Name { name }
-                                }
-                                token => {
-                                    let reason = match token {
-                                        Token::Keyword(Keyword::BracketLeft) => {
-                                            "Subscript expression should not directly follow `.`"
-                                        }
-                                        _ => "",
-                                    };
-                                    return Err(unexpected!(
-                                        self.line(),
-                                        token.to_owned(),
-                                        ["table key or item name"],
-                                        reason,
-                                    ));
-                                }
-                            }
-                        }
-
-                        Token::Keyword(Keyword::BracketLeft) => {
-                            self.next();
-                            let index = self.expect_expr()?;
-                            match self.next() {
-                                Token::Keyword(Keyword::BracketRight) => {
-                                    ExprPathPart::Index { index }
-                                }
-                                Token::Keyword(Keyword::Comma) => {
-                                    let start = index;
-                                    let end = self.expect_expr()?;
-                                    self.expect_keyword_reason(
-                                        Keyword::BracketRight,
-                                        "Subscript expression should end with `]`",
-                                    )?;
-                                    ExprPathPart::Slice { start, end }
-                                }
-                                token => {
-                                    return Err(unexpected!(
-                                        self.line(),
-                                        token.to_owned(),
-                                        // Or rest of expression ?
-                                        [Keyword::BracketRight, Keyword::Comma],
-                                        "Subscript expression should end with `]`",
-                                    ));
-                                }
-                            }
-                        }
-
-                        Token::Keyword(Keyword::ParenLeft) => {
-                            self.next();
-
-                            let mut params = CallParams::default();
-                            loop {
-                                match self.peek() {
-                                    Token::Keyword(Keyword::ParenRight) => {
-                                        self.next();
-                                        break;
-                                    }
-
-                                    Token::Keyword(Keyword::Spread) => {
-                                        self.next();
-                                        let expr = self.expect_expr()?;
-                                        params.rest = Some(Box::new(expr));
-                                        self.expect_keyword_reason(
-                                            Keyword::ParenRight,
-                                            "Spread argument must be last argument",
-                                        )?;
-                                        break;
-                                    }
-
-                                    _ => {
-                                        let expr = self.expect_expr()?;
-                                        params.params.push(expr);
-                                        match self.next() {
-                                            Token::Keyword(Keyword::Comma) => (),
-                                            Token::Keyword(Keyword::ParenRight) => break,
-                                            token => {
-                                                return Err(unexpected!(
-                                                    self.line(),
-                                                    token.to_owned(),
-                                                    [Keyword::Comma, Keyword::ParenRight],
-                                                    "Arguments must be separated with commas",
-                                                ))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            ExprPathPart::Call { params }
-                        }
-
-                        _ => {
-                            break;
-                        }
-                    };
-                    rest.push(part);
-                }
-
-                return Ok(Expr::Path(Box::new(ExprPath::from(origin, rest))));
+                let value = self.expect_expr_value(origin)?;
+                return Ok(Expr::Value(Box::new(value)));
             }
 
             Token::Keyword(Keyword::Dash) => {
@@ -998,7 +897,7 @@ impl TokenIter {
 
             Token::Keyword(Keyword::As) => {
                 let ident = self.expect_ident()?;
-                let name = self.expect_lvalue(ident)?;
+                let name = self.expect_left_value(ident)?;
                 self.expect_keyword_reason(
                     Keyword::BraceLeft,
                     "Template name must be followed by table",
@@ -1007,7 +906,7 @@ impl TokenIter {
                 let Expr::Table(table) = table else {
                     panic!("Expression should be `Expr::Table`");
                 };
-                return Ok(Expr::TemplateTable(name, table));
+                return Ok(Expr::TemplatedTable(name, table));
             }
 
             Token::Keyword(Keyword::If) => {
@@ -1036,6 +935,116 @@ impl TokenIter {
         }
     }
 
+    fn expect_expr_value(&mut self, origin: Ident) -> Result<ExprValue, ParseError> {
+        //TODO: Save index
+        // ^ ?????
+
+        let mut rest = Vec::new();
+        loop {
+            let part = match self.peek() {
+                Token::Keyword(Keyword::Dot) => {
+                    self.next();
+                    match self.next() {
+                        Token::Ident(ident) => {
+                            let name = ident.to_owned();
+                            ExprValuePart::Name(name)
+                        }
+                        token => {
+                            let reason = match token {
+                                Token::Keyword(Keyword::BracketLeft) => {
+                                    "Subscript expression should not directly follow `.`"
+                                }
+                                _ => "",
+                            };
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                ["table key or item name"],
+                                reason,
+                            ));
+                        }
+                    }
+                }
+
+                Token::Keyword(Keyword::BracketLeft) => {
+                    self.next();
+                    let index = self.expect_expr()?;
+                    match self.next() {
+                        Token::Keyword(Keyword::BracketRight) => ExprValuePart::Index(index),
+                        Token::Keyword(Keyword::Comma) => {
+                            let end = self.expect_expr()?;
+                            self.expect_keyword_reason(
+                                Keyword::BracketRight,
+                                "Subscript expression should end with `]`",
+                            )?;
+                            ExprValuePart::Slice(index, end)
+                        }
+                        token => {
+                            return Err(unexpected!(
+                                self.line(),
+                                token.to_owned(),
+                                // Or rest of expression ?
+                                [Keyword::BracketRight, Keyword::Comma],
+                                "Subscript expression should end with `]`",
+                            ));
+                        }
+                    }
+                }
+
+                Token::Keyword(Keyword::ParenLeft) => {
+                    self.next();
+
+                    let mut params = CallParams::default();
+                    loop {
+                        match self.peek() {
+                            Token::Keyword(Keyword::ParenRight) => {
+                                self.next();
+                                break;
+                            }
+
+                            Token::Keyword(Keyword::Spread) => {
+                                self.next();
+                                let expr = self.expect_expr()?;
+                                params.rest = Some(Box::new(expr));
+                                self.expect_keyword_reason(
+                                    Keyword::ParenRight,
+                                    "Spread argument must be last argument",
+                                )?;
+                                break;
+                            }
+
+                            _ => {
+                                let expr = self.expect_expr()?;
+                                params.params.push(expr);
+                                match self.next() {
+                                    Token::Keyword(Keyword::Comma) => (),
+                                    Token::Keyword(Keyword::ParenRight) => break,
+                                    token => {
+                                        return Err(unexpected!(
+                                            self.line(),
+                                            token.to_owned(),
+                                            [Keyword::Comma, Keyword::ParenRight],
+                                            "Arguments must be separated with commas",
+                                        ))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ExprValuePart::Call(params)
+                }
+
+                _ => {
+                    break;
+                }
+            };
+            rest.push(part);
+        }
+
+        return Ok(ExprValue::from(origin, rest));
+    }
+
     fn expect_table(&mut self) -> Result<Expr, ParseError> {
         let mut table = Table::default();
         let mut implicit_key = 0;
@@ -1051,9 +1060,9 @@ impl TokenIter {
 
             if self.peek() == &Token::Keyword(Keyword::Spread) {
                 self.next();
-                let ident = self.expect_ident()?;
-                let lvalue = self.expect_lvalue(ident)?;
-                table.spread = Some(lvalue);
+                let origin = self.expect_ident()?;
+                let value = self.expect_expr_value(origin)?;
+                table.spread = Some(value);
                 self.expect_keyword_reason(Keyword::BraceRight, "Spread key must be last key")?;
                 break;
             }
@@ -1107,7 +1116,7 @@ impl TokenIter {
         Ok(Expr::Table(table))
     }
 
-    fn expect_lvalue(&mut self, origin: Ident) -> Result<LValue, ParseError> {
+    fn expect_left_value(&mut self, origin: Ident) -> Result<LeftValue, ParseError> {
         let mut parts = Vec::new();
 
         loop {
@@ -1115,7 +1124,7 @@ impl TokenIter {
                 Token::Keyword(Keyword::Dot) => {
                     self.next();
                     match self.next() {
-                        Token::Ident(ident) => LValuePart::Ident(ident.to_owned()),
+                        Token::Ident(ident) => LeftValuePart::Name(ident.to_owned()),
                         token => {
                             return Err(unexpected!(
                                 self.line(),
@@ -1144,8 +1153,8 @@ impl TokenIter {
                     )?;
 
                     match end {
-                        None => LValuePart::Index(start),
-                        Some(end) => LValuePart::Slice(start, end),
+                        None => LeftValuePart::Index(start),
+                        Some(end) => LeftValuePart::Slice(start, end),
                     }
                 }
 
@@ -1154,7 +1163,7 @@ impl TokenIter {
             parts.push(part);
         }
 
-        Ok(LValue::from(origin, parts))
+        Ok(LeftValue::from(origin, parts))
     }
 
     //TODO: Refactor this ideally. it is not very nice
@@ -1171,7 +1180,7 @@ impl TokenIter {
             }
         };
 
-        let Ok(lvalue) = self.expect_lvalue(origin) else {
+        let Ok(left_value) = self.expect_left_value(origin) else {
             self.set_index(index);
             return None;
         };
@@ -1189,6 +1198,9 @@ impl TokenIter {
             Err(err) => return Some(Err(err)),
         };
 
-        Some(Ok(Statement::Assign(Assign { lvalue, value })))
+        Some(Ok(Statement::Assign(Assign {
+            name: left_value,
+            value,
+        })))
     }
 }
