@@ -4,23 +4,17 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SourceModule {
-    module: StatementBody,
-    linked: Vec<Module>,
-}
-
-#[derive(Debug, PartialEq)]
-struct Module {
+pub struct Module {
     name: ModuleName,
     body: StatementBody,
 }
 
-type ModuleName = String;
+pub type ModuleName = String;
 
-type StatementBody = Vec<Statement>;
+pub type StatementBody = Vec<Statement>;
 
 #[derive(Debug, PartialEq)]
-enum Statement {
+pub enum Statement {
     Module(Module),
     Template(Template),
     Func(FuncStatement),
@@ -36,13 +30,13 @@ enum Statement {
 }
 
 #[derive(Debug, PartialEq)]
-struct Template {
+pub struct Template {
     name: Ident,
     entries: Vec<TemplateEntry>,
 }
 
 #[derive(Debug, PartialEq)]
-enum TemplateEntry {
+pub enum TemplateEntry {
     Key {
         key: Ident,
         default_value: Option<Expr>,
@@ -51,14 +45,14 @@ enum TemplateEntry {
 }
 
 #[derive(Debug, PartialEq)]
-struct FuncStatement {
+pub struct FuncStatement {
     name: Ident,
     params: FuncParams,
     body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-struct FuncTableEntry {
+pub struct FuncTableEntry {
     name: Ident,
     self_param: bool,
     params: FuncParams,
@@ -66,21 +60,21 @@ struct FuncTableEntry {
 }
 
 #[derive(Debug, PartialEq)]
-struct FuncExpr {
+pub struct FuncExpr {
     params: FuncParams,
     body: StatementBody,
 }
 
-type Ident = String;
+pub type Ident = String;
 
 #[derive(Debug, PartialEq)]
-struct Chain<T> {
+pub struct Chain<T> {
     origin: ChainOrigin,
     chain: Vec<T>,
 }
 
 #[derive(Debug, PartialEq)]
-enum ChainOrigin {
+pub enum ChainOrigin {
     Self_,
     Name(Ident),
 }
@@ -94,10 +88,10 @@ impl<T> Chain<T> {
 /// Anything which can appear to the left of an assignment
 ///
 /// Note: Not used for `let` statements
-type AssignableChain = Chain<AssignableSegment>;
+pub type AssignableChain = Chain<AssignableSegment>;
 
 #[derive(Debug, PartialEq)]
-enum AssignableSegment {
+pub enum AssignableSegment {
     Name(Ident),
     Index(Expr),
     Slice(Expr, Expr),
@@ -105,10 +99,10 @@ enum AssignableSegment {
 
 /// Any single value, which can be a combination of field or subscript accesses,
 /// and function calls
-type AccessibleChain = Chain<AccessibleSegment>;
+pub type AccessibleChain = Chain<AccessibleSegment>;
 
 #[derive(Debug, PartialEq)]
-enum AccessibleSegment {
+pub enum AccessibleSegment {
     Name(Ident),
     Index(Expr),
     Slice(Expr, Expr),
@@ -116,36 +110,36 @@ enum AccessibleSegment {
 }
 
 #[derive(Debug, Default, PartialEq)]
-struct FuncParams {
+pub struct FuncParams {
     params: Vec<Ident>,
     rest_param: Option<Ident>,
 }
 
 #[derive(Debug, Default, PartialEq)]
-struct FuncArgs {
+pub struct FuncArgs {
     args: Vec<Expr>,
     spread_arg: Option<Box<Expr>>,
 }
 
 #[derive(Debug, PartialEq)]
-struct LetStatement {
+pub struct LetStatement {
     names: Plural<Ident>,
     value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
-struct ReturnStatement {
+pub struct ReturnStatement {
     values: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq)]
-struct AssignStatement {
+pub struct AssignStatement {
     name: AssignableChain,
     value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
-enum Expr {
+pub enum Expr {
     Group(Box<Expr>),
     Literal(Literal),
     Chain(Box<AccessibleChain>),
@@ -167,13 +161,13 @@ enum Expr {
 }
 
 #[derive(Debug, PartialEq)]
-enum UnaryOp {
+pub enum UnaryOp {
     Not,
     Negative,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum BinaryOp {
+pub enum BinaryOp {
     Add,
     Multiply,
     Subtract,
@@ -191,51 +185,51 @@ enum BinaryOp {
 }
 
 #[derive(Debug, PartialEq)]
-struct IfStatement {
+pub struct IfStatement {
     if_branch: Box<ConditionalBranch>,
     elif_branches: Vec<ConditionalBranch>,
     else_branch: Option<StatementBody>,
 }
 
 #[derive(Debug, PartialEq)]
-struct IfExpr {
+pub struct IfExpr {
     if_branch: Box<ConditionalBranch>,
     elif_branches: Vec<ConditionalBranch>,
     else_branch: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-struct ConditionalBranch {
+pub struct ConditionalBranch {
     condition: Expr,
     body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-struct ForStatement {
+pub struct ForStatement {
     names: Plural<Ident>,
     source: ForSource,
     body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
-enum ForSource {
+pub enum ForSource {
     Range(Expr, Expr),
     Iterable(Expr),
 }
 
 #[derive(Debug, PartialEq)]
-struct WhileStatement {
+pub struct WhileStatement {
     branch: ConditionalBranch,
 }
 
 #[derive(Debug, Default, PartialEq)]
-struct TableExpr {
+pub struct TableExpr {
     entries: Vec<TableEntry>,
     base_table: Option<AccessibleChain>,
 }
 
 #[derive(Debug, PartialEq)]
-enum TableEntry {
+pub enum TableEntry {
     Literal {
         key: Literal,
         value: Box<Expr>,
@@ -249,7 +243,7 @@ enum TableEntry {
 
 /// >=1 items
 #[derive(Debug, PartialEq)]
-struct Plural<T> {
+pub struct Plural<T> {
     first: T,
     rest: Vec<T>,
 }
@@ -323,18 +317,15 @@ impl Ord for BinaryOp {
     }
 }
 
-pub fn parse_source_module(tokens: Vec<TokenRef>) -> Result<SourceModule, ParseError> {
+pub fn parse_module_body(tokens: Vec<TokenRef>) -> Result<StatementBody, ParseError> {
     let mut tokens = TokenIter::from(tokens);
 
-    let module = tokens.expect_body()?;
+    let body = tokens.expect_body()?;
 
     // Does this need to be here ?
     tokens.expect_eof()?;
 
-    Ok(SourceModule {
-        module,
-        linked: vec![],
-    })
+    Ok(body)
 }
 
 impl TokenIter {

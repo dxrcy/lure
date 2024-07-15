@@ -3,6 +3,29 @@ use std::fmt::{self, Display};
 use crate::lex::Token;
 
 #[derive(Debug)]
+pub enum InterpretError {
+    Parse(ParseError),
+    Run(String),
+}
+
+impl Display for InterpretError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Self::Parse(error) => {
+                write!(f, "\x1b[31mFailed to parse:\x1b[0m")?;
+                write!(f, "\x1b[33m{}\x1b[0m", error)?;
+                Ok(())
+            }
+            Self::Run(error) => {
+                write!(f, "\x1b[31mFailed to execute:\x1b[0m")?;
+                write!(f, "\x1b[33m{}\x1b[0m", error)?;
+                Ok(())
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ParseError {
     pub line: usize,
     pub error: ParseErrorKind,
