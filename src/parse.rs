@@ -75,12 +75,18 @@ type Ident = String;
 
 #[derive(Debug, PartialEq)]
 struct Chain<T> {
-    origin: Ident,
+    origin: ChainOrigin,
     chain: Vec<T>,
 }
 
+#[derive(Debug, PartialEq)]
+enum ChainOrigin {
+    Self_,
+    Name(Ident),
+}
+
 impl<T> Chain<T> {
-    pub fn from(origin: Ident, chain: Vec<T>) -> Self {
+    pub fn from(origin: ChainOrigin, chain: Vec<T>) -> Self {
         Self { origin, chain }
     }
 }
@@ -965,8 +971,13 @@ impl TokenIter {
                 return Ok(Expr::Literal(literal.to_owned()));
             }
 
+            Token::Keyword(Keyword::Self_) => {
+                let origin = ChainOrigin::Self_;
+                let value = self.expect_accessible_chain(origin)?;
+                return Ok(Expr::Chain(Box::new(value)));
+            }
             Token::Ident(ident) => {
-                let origin = ident.to_owned();
+                let origin = ChainOrigin::Name(ident.to_owned());
                 let value = self.expect_accessible_chain(origin)?;
                 return Ok(Expr::Chain(Box::new(value)));
             }
@@ -993,8 +1004,8 @@ impl TokenIter {
             }
 
             Token::Keyword(Keyword::As) => {
-                let ident = self.expect_ident()?;
-                let name = self.expect_assignable_chain(ident)?;
+                let origin = self.expect_chain_origin()?;
+                let name = self.expect_assignable_chain(origin)?;
                 self.expect_keyword(
                     Keyword::BraceLeft,
                     "Template name must be followed by table",
@@ -1032,7 +1043,10 @@ impl TokenIter {
         }
     }
 
-    fn expect_accessible_chain(&mut self, origin: Ident) -> Result<AccessibleChain, ParseError> {
+    fn expect_accessible_chain(
+        &mut self,
+        origin: ChainOrigin,
+    ) -> Result<AccessibleChain, ParseError> {
         //TODO: Save index
         // ^ ????? Why?
 
@@ -1142,6 +1156,18 @@ impl TokenIter {
         return Ok(AccessibleChain::from(origin, rest));
     }
 
+    fn expect_chain_origin(&mut self) -> Result<ChainOrigin, ParseError> {
+        match self.next() {
+            Token::Keyword(Keyword::Self_) => Ok(ChainOrigin::Self_),
+            Token::Ident(ident) => Ok(ChainOrigin::Name(ident.to_owned())),
+            token => Err(unexpected!(
+                self.line(),
+                token.to_owned(),
+                ["ident", Keyword::Self_]
+            )),
+        }
+    }
+
     fn expect_table_expr(&mut self) -> Result<TableExpr, ParseError> {
         let mut table = TableExpr::default();
         let mut implicit_key = 0;
@@ -1156,7 +1182,7 @@ impl TokenIter {
             match self.peek() {
                 Token::Keyword(Keyword::Spread) => {
                     self.next();
-                    let origin = self.expect_ident()?;
+                    let origin = self.expect_chain_origin()?;
                     let value = self.expect_accessible_chain(origin)?;
                     table.base_table = Some(value);
                     self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
@@ -1252,7 +1278,10 @@ impl TokenIter {
         Ok(table)
     }
 
-    fn expect_assignable_chain(&mut self, origin: Ident) -> Result<AssignableChain, ParseError> {
+    fn expect_assignable_chain(
+        &mut self,
+        origin: ChainOrigin,
+    ) -> Result<AssignableChain, ParseError> {
         let mut parts = Vec::new();
 
         loop {
@@ -1307,13 +1336,9 @@ impl TokenIter {
         // We don't yet know if it is an assignment statement or not
         let index = self.get_index();
 
-        let origin = match self.next() {
-            Token::Ident(ident) => ident.to_owned(),
-
-            _ => {
-                self.set_index(index);
-                return None;
-            }
+        let Ok(origin) = self.expect_chain_origin() else {
+            self.set_index(index);
+            return None;
         };
 
         let Ok(left_value) = self.expect_assignable_chain(origin) else {

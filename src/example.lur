@@ -1,10 +1,118 @@
-{
-    "implicit key" ,
-    "keyliteral" = "value",
-    3 = "valuenumber",
-    "implicit key 2",
+#! Some library module example
+
+# (These are also redudant)
+let assert = std.util.assert
+let is_int = std.util.is_int
+
+#: a int, b int -> int
+func add(a, b)
+    return a + b
+end
+
+let table = {
     key = "value",
+    # Maybe this will be supported ??
     nested.key = "value",
-    key[0] = 34+abc,
-    nested[0].abc = "bar",
 }
+
+let PI = std.math.PI
+
+let fib_memory = {}
+
+# Alternate function definition
+# `func(...) ... end` is an expression
+
+#: int -> int
+let fib = func(n)
+    # panics if not met
+    assert(is_int(n) and n >= 0)
+
+    if n < 2 then
+        return n
+    end
+
+    if n < len(fib_memory) then
+        return fib_memory[n]
+    end
+    
+    let result = fib(n - 1) + fib(n - 2)
+    fib_memory[n] = result
+    return result
+end
+
+#: { a }, func(a -> b) -> { b }
+func map(table, fun)
+    for key, value in table do
+        table[key] = fun(value)
+    end
+    return table
+end
+
+# Templates
+#
+# Similar to metatables (I think)
+# No inheritance or anything.
+#
+# Note the `{...}` syntax used for the body, to mirror the table creation
+#
+# A table can function the exact same without defining using a template, but
+# doing so allows better ""type safety"" and ideally more readable code.
+# Default fields and methods will be automatically included in the table.
+
+## A person
+template Person {
+    # Required fields. If a table is defined with the template, and these
+    # values are not supplied, the interpreter will throw an error (or at least
+    # a warning)
+
+    #: string
+    name,
+    #: int
+    age,
+
+    # Default value given
+    #: bool
+    is_alive = true,
+
+    # Methods
+
+    # `self` is a keyword probably. This is not unique to templates.
+    # Not sure what the type-comment syntax should be for `self`
+   
+    ## Get the name
+    #: (Person) -> string
+    func get_name(self)
+        return self.name
+    end
+
+    # `@` signifies an 'overridden' method, kinda...
+    # It is exactly the same as a normal method, but implies that other
+    # modules/functions may expect it to exist (such as `std.format` in this
+    # case)
+    # Similar to `__tostring` in Lua (I think)
+    # Documentation or type comments cannot be inferred, because a generic
+    # `@to_string` method is not defined anywhere. Though doc comments probably
+    # are not necessary here.
+
+    #: (Person) -> string
+    func @to_string(self)
+        return std.format("%s is %d years old", self.name, self.age)
+    end
+}
+
+template Vector {
+    #: int
+    x = 0,
+    #: int
+    y = 0,
+    
+    #: (Vector), Vector -> Vector
+    func @add(self, other)
+        return as Vector {
+            x = self.x + other.x,
+            y = self.y + other.y,
+        }
+    end
+}
+
+
