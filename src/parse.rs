@@ -436,20 +436,31 @@ impl TokenIter {
         Ok(statements)
     }
 
-    fn expect_return_statement(&mut self) -> Result<ReturnStatement, ParseError> {
-        let mut values = Vec::new();
-
-        if self.peek() == &Token::Keyword(Keyword::End) {
-            return Ok(ReturnStatement { values });
+    fn next_token_ends_body(&mut self) -> bool {
+        match self.peek() {
+            Token::Keyword(Keyword::End) => true,
+            Token::Keyword(Keyword::Elif) => true,
+            Token::Keyword(Keyword::Else) => true,
+            _ => false,
         }
+    }
+
+    fn expect_return_statement(&mut self) -> Result<ReturnStatement, ParseError> {
+        if self.next_token_ends_body() {
+            return Ok(ReturnStatement { values: Vec::new() });
+        }
+
+        let mut values = Vec::new();
 
         loop {
             let value = self.expect_expr()?;
             values.push(value);
 
-            match self.peek() {
-                Token::Keyword(Keyword::End) => break,
+            if self.next_token_ends_body() {
+                break;
+            }
 
+            match self.peek() {
                 Token::Keyword(Keyword::Comma) => {
                     self.next();
                 }
@@ -458,6 +469,7 @@ impl TokenIter {
                     return Err(unexpected!(
                         self.line(),
                         token.to_owned(),
+                        // Do not include `elif` and `else`
                         [Keyword::Comma, Keyword::End],
                         "`return` must be not be followed by another statement",
                     ));
