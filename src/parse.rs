@@ -5,8 +5,8 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub struct Module {
-    name: ModuleName,
-    body: StatementBody,
+    pub name: ModuleName,
+    pub body: StatementBody,
 }
 
 pub type ModuleName = String;
@@ -31,8 +31,8 @@ pub enum Statement {
 
 #[derive(Debug, PartialEq)]
 pub struct Template {
-    name: Ident,
-    entries: Vec<TemplateEntry>,
+    pub name: Ident,
+    pub entries: Vec<TemplateEntry>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -46,31 +46,31 @@ pub enum TemplateEntry {
 
 #[derive(Debug, PartialEq)]
 pub struct FuncStatement {
-    name: Ident,
-    params: FuncParams,
-    body: StatementBody,
+    pub name: Ident,
+    pub params: FuncParams,
+    pub body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct FuncTableEntry {
-    name: Ident,
-    self_param: bool,
-    params: FuncParams,
-    body: StatementBody,
+    pub name: Ident,
+    pub self_param: bool,
+    pub params: FuncParams,
+    pub body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct FuncExpr {
-    params: FuncParams,
-    body: StatementBody,
+    pub params: FuncParams,
+    pub body: StatementBody,
 }
 
 pub type Ident = String;
 
 #[derive(Debug, PartialEq)]
 pub struct Chain<T> {
-    origin: ChainOrigin,
-    chain: Vec<T>,
+    pub origin: ChainOrigin,
+    pub chain: Vec<T>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -111,31 +111,31 @@ pub enum AccessibleSegment {
 
 #[derive(Debug, Default, PartialEq)]
 pub struct FuncParams {
-    params: Vec<Ident>,
-    rest_param: Option<Ident>,
+    pub params: Vec<Ident>,
+    pub rest_param: Option<Ident>,
 }
 
 #[derive(Debug, Default, PartialEq)]
 pub struct FuncArgs {
-    args: Vec<Expr>,
-    spread_arg: Option<Box<Expr>>,
+    pub args: Vec<Expr>,
+    pub spread_arg: Option<Box<Expr>>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
-    names: Plural<Ident>,
-    value: Expr,
+    pub names: Plural<Ident>,
+    pub value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
-    values: Vec<Expr>,
+    pub values: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct AssignStatement {
-    name: AssignableChain,
-    value: Expr,
+    pub name: AssignableChain,
+    pub value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
@@ -186,29 +186,29 @@ pub enum BinaryOp {
 
 #[derive(Debug, PartialEq)]
 pub struct IfStatement {
-    if_branch: Box<ConditionalBranch>,
-    elif_branches: Vec<ConditionalBranch>,
-    else_branch: Option<StatementBody>,
+    pub if_branch: Box<ConditionalBranch>,
+    pub elif_branches: Vec<ConditionalBranch>,
+    pub else_branch: Option<StatementBody>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct IfExpr {
-    if_branch: Box<ConditionalBranch>,
-    elif_branches: Vec<ConditionalBranch>,
-    else_branch: StatementBody,
+    pub if_branch: Box<ConditionalBranch>,
+    pub elif_branches: Vec<ConditionalBranch>,
+    pub else_branch: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ConditionalBranch {
-    condition: Expr,
-    body: StatementBody,
+    pub condition: Expr,
+    pub body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ForStatement {
-    names: Plural<Ident>,
-    source: ForSource,
-    body: StatementBody,
+    pub names: Plural<Ident>,
+    pub source: ForSource,
+    pub body: StatementBody,
 }
 
 #[derive(Debug, PartialEq)]
@@ -219,13 +219,13 @@ pub enum ForSource {
 
 #[derive(Debug, PartialEq)]
 pub struct WhileStatement {
-    branch: ConditionalBranch,
+    pub branch: ConditionalBranch,
 }
 
 #[derive(Debug, Default, PartialEq)]
 pub struct TableExpr {
-    entries: Vec<TableEntry>,
-    base_table: Option<AccessibleChain>,
+    pub entries: Vec<TableEntry>,
+    pub base_table: Option<AccessibleChain>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -244,8 +244,8 @@ pub enum TableEntry {
 /// >=1 items
 #[derive(Debug, PartialEq)]
 pub struct Plural<T> {
-    first: T,
-    rest: Vec<T>,
+    pub first: T,
+    pub rest: Vec<T>,
 }
 
 impl<T> Plural<T> {

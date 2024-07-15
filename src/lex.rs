@@ -22,10 +22,11 @@ pub type Number = f64;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
-    String(String),
-    Number(Number),
-    Bool(bool),
     Nil,
+    Bool(bool),
+    Char(char),
+    Number(Number),
+    String(String),
 }
 
 macro_rules! make_keyword {
@@ -128,8 +129,9 @@ impl Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Nil => write!(f, "nil"),
-            Self::Bool(boolean) => write!(f, "{}", boolean),
+            Self::Bool(bool) => write!(f, "{}", bool),
             Self::Number(number) => write!(f, "{}", number),
+            Self::Char(char) => write!(f, "{}", char),
             Self::String(string) => write!(f, "{:?}", string),
         }
     }
@@ -236,14 +238,19 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
                     string.push(ch);
                 };
             }
-            if is_char && string.len() != 1 {
-                return Err(ParseError {
-                    line,
-                    error: ParseErrorKind::CharLiteralNotSingleChar { found: string },
-                });
-            }
+            let literal = if is_char {
+                if string.len() != 1 {
+                    return Err(ParseError {
+                        line,
+                        error: ParseErrorKind::CharLiteralNotSingleChar { found: string },
+                    });
+                }
+                Literal::Char(string.chars().next().expect("Character should exist"))
+            } else {
+                Literal::String(string)
+            };
             tokens.push(TokenRef {
-                token: Token::Literal(Literal::String(string)),
+                token: Token::Literal(literal),
                 line,
             });
         } else if ch.is_ascii_digit() {
