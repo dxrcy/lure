@@ -18,10 +18,12 @@ pub enum Token {
     Eof,
 }
 
+pub type Number = f64;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     String(String),
-    Number(f64),
+    Number(Number),
     Bool(bool),
     Nil,
 }
@@ -284,7 +286,7 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
             }
             // If this fails, that means this lexing function is broken, not the
             // user's code
-            let number: f64 = number.parse().expect("Number should be valid");
+            let number: Number = number.parse().expect("Number should be valid");
             tokens.push(TokenRef {
                 token: Token::Literal(Literal::Number(number)),
                 line,

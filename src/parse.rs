@@ -1,5 +1,5 @@
 use crate::{
-    lex::{Keyword, Literal, Token, TokenRef},
+    lex::{Keyword, Literal, Number, Token, TokenRef},
     ParseError, ParseErrorKind, TokenIter,
 };
 
@@ -230,7 +230,14 @@ struct TableExpr {
 
 #[derive(Debug, PartialEq)]
 enum TableEntry {
-    Key { key: Literal, value: Box<Expr> },
+    Literal {
+        key: Literal,
+        value: Box<Expr>,
+    },
+    Chain {
+        key: AssignableChain,
+        value: Box<Expr>,
+    },
     Func(FuncTableEntry),
 }
 
@@ -1146,10 +1153,9 @@ impl TokenIter {
         }
 
         loop {
-            let index = self.get_index();
-
-            match self.next() {
+            match self.peek() {
                 Token::Keyword(Keyword::Spread) => {
+                    self.next();
                     let origin = self.expect_ident()?;
                     let value = self.expect_accessible_chain(origin)?;
                     table.base_table = Some(value);
@@ -1158,6 +1164,7 @@ impl TokenIter {
                 }
 
                 Token::Keyword(Keyword::Func) => {
+                    self.next();
                     let func = self.expect_func_table_entry()?;
                     table.entries.push(TableEntry::Func(func));
 
@@ -1182,32 +1189,44 @@ impl TokenIter {
                     }
                 }
 
-                token => {
-                    let key_token = token.to_owned();
-                    let key = match self.next() {
-                        Token::Keyword(Keyword::SingleEqual) => match key_token {
-                            Token::Literal(literal) => literal.to_owned(),
-                            Token::Ident(ident) => Literal::String(ident.to_owned()),
+                _ => {
+                    let entry: TableEntry = 'entry: {
+                        let index = self.get_index();
 
-                            _ => {
-                                return Err(unexpected!(
-                                    self.line(),
-                                    Keyword::SingleEqual,
-                                    ["literal or identifier with `=`", "expression"],
-                                    "Table key must be a literal or an identifier followed by `=`",
-                                ));
+                        // Both of these can fail to match, if the following token is not `=`
+                        // Leave this as a `match` statement for readability
+                        match self.peek() {
+                            Token::Ident(_) => {
+                                // Consumes `=` and value expression
+                                if let Some(assign) = self.try_assign_statement() {
+                                    let assign = assign?;
+                                    let key = assign.name;
+                                    let value = Box::new(assign.value);
+                                    break 'entry TableEntry::Chain { key, value };
+                                }
                             }
-                        },
-                        _ => {
-                            self.set_index(index);
-                            let key = implicit_key;
-                            implicit_key += 1;
-                            Literal::Number(key as f64)
+
+                            Token::Literal(literal) => {
+                                let key = literal.to_owned();
+                                self.next();
+                                if self.next() == &Token::Keyword(Keyword::SingleEqual) {
+                                    let value = Box::new(self.expect_expr()?);
+                                    break 'entry TableEntry::Literal { key, value };
+                                }
+                            }
+
+                            _ => (),
                         }
+
+                        // Fallback to positional expression
+                        self.set_index(index);
+                        let key = Literal::Number(implicit_key as Number);
+                        implicit_key += 1;
+                        let value = Box::new(self.expect_expr()?);
+                        TableEntry::Literal { key, value }
                     };
 
-                    let value = Box::new(self.expect_expr()?);
-                    table.entries.push(TableEntry::Key { key, value });
+                    table.entries.push(entry);
 
                     match self.next() {
                         Token::Keyword(Keyword::Comma) => {

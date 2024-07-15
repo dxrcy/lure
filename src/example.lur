@@ -1,3 +1,10 @@
-func abc()
-    return awd.abc()+1
-end
+{
+    "implicit key" ,
+    "keyliteral" = "value",
+    3 = "valuenumber",
+    "implicit key 2",
+    key = "value",
+    nested.key = "value",
+    key[0] = 34+abc,
+    nested[0].abc = "bar",
+}
