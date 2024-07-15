@@ -428,12 +428,12 @@ impl TokenIter {
     }
 
     fn next_token_ends_body(&mut self) -> bool {
-        match self.peek() {
-            Token::Keyword(Keyword::End) => true,
-            Token::Keyword(Keyword::Elif) => true,
-            Token::Keyword(Keyword::Else) => true,
-            _ => false,
-        }
+        matches!(
+            self.peek(),
+            Token::Keyword(Keyword::End)
+                | Token::Keyword(Keyword::Elif)
+                | Token::Keyword(Keyword::Else)
+        )
     }
 
     fn expect_return_statement(&mut self) -> Result<ReturnStatement, ParseError> {
@@ -475,13 +475,8 @@ impl TokenIter {
         let name_first = self.expect_ident()?;
 
         let mut name_rest = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Keyword(Keyword::Comma) => {
-                    self.next();
-                }
-                _ => break,
-            }
+        while self.peek() == &Token::Keyword(Keyword::Comma) {
+            self.next();
             let name = self.expect_ident()?;
             name_rest.push(name);
         }
@@ -810,15 +805,10 @@ impl TokenIter {
         let key_name = self.expect_ident()?;
 
         let mut value_names = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Keyword(Keyword::Comma) => {
-                    self.next();
-                    let name = self.expect_ident()?;
-                    value_names.push(name);
-                }
-                _ => break,
-            };
+        while self.peek() == &Token::Keyword(Keyword::Comma) {
+            self.next();
+            let name = self.expect_ident()?;
+            value_names.push(name);
         }
         let names = Plural::from(key_name, value_names);
 

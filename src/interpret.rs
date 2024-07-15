@@ -15,8 +15,8 @@ pub fn interpret_main(file: &str) -> Result<(), InterpretError> {
     Ok(())
 }
 
-fn interpret_file(modules: &mut ModuleMap, file: &str) -> Result<(), InterpretError> {
-    let module = lex_and_parse(file).map_err(|err| InterpretError::Parse(err))?;
+fn interpret_file(_modules: &mut ModuleMap, file: &str) -> Result<(), InterpretError> {
+    let module = lex_and_parse(file).map_err(InterpretError::Parse)?;
 
     println!("{:#?}", module);
 

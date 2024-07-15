@@ -1,118 +1,121 @@
-#! Some library module example
+func main(args)
+    println("=== HANGMAN ===")
 
-# (These are also redudant)
-let assert = std.util.assert
-let is_int = std.util.is_int
+    if len(args) < 1 then
+        println("Please provide a file path.")
+        return 1
+    end
+    let filename = args[1]
 
-#: a int, b int -> int
-func add(a, b)
-    return a + b
+    let words = read_file_lines(filename)
+    if words == nil then
+        println("Failed to read file.")
+        return 2
+    end
+
+    println("\n\n\n\n\n")
+
+    while true do
+        let index = math.random_int(0, len(words))
+        let word = words[index]
+
+        let correct = {}
+        let incorrect = {}
+
+        while true do
+            for _ in 0 to 5 do
+                print("\x1b[A\x1b[K")
+            end
+
+            let visible = ""
+            let is_win = true
+            for _, ch in word do
+                if correct[ch] then
+                    visible = visible & ch
+                else
+                    visible = visible & '_'
+                    is_win = false
+                end
+            end
+
+            if is_win then
+                println("---------")
+                println("You win! :)")
+                println("The word was: '{}'\n", word)
+                println("---------")
+                _ = io.scan_line()
+                break
+            elif len(incorrect) >= 6 then
+                println("---------")
+                println("You lose! :(")
+                println("The word was: '{}'\n", word)
+                println("---------")
+                _ = io.scan_line()
+                break
+            end
+
+            println(visible)
+            println("Chances: {}\n", 6 - len(incorrect))
+            println("Correct: ")
+            print_set(correct)
+            println("Inorrect: ")
+            print_set(incorrect)
+            print("Guess: ")
+
+            let line = io.scan_line()
+            if len(line) >= 1 then
+                let guess = line[0]
+
+                if word.contains(guess) then
+                    if not correct[guess] then
+                        correct[guess] = true
+                    end
+                else
+                    if not incorrect[guess] then
+                        incorrect[guess] = true
+                    end
+                end
+            end
+        end
+    end
 end
 
-let table = {
-    key = "value",
-    # Maybe this will be supported ??
-    nested.key = "value",
-}
-
-let PI = std.math.PI
-
-let fib_memory = {}
-
-# Alternate function definition
-# `func(...) ... end` is an expression
-
-#: int -> int
-let fib = func(n)
-    # panics if not met
-    assert(is_int(n) and n >= 0)
-
-    if n < 2 then
-        return n
+#: string -> { string } | nil
+func read_file_lines(filename)
+    let result = File.open(filename, "r")
+    let file = result.ok
+    if result.err != nil then
+        return nil
     end
 
-    if n < len(fib_memory) then
-        return fib_memory[n]
+    let lines = {}
+    while true do
+        let err, line = file.read_line()
+        if err != nil then
+            return nil
+        end
+        if line == nil then
+            break
+        end
+        if line[-1] == '\r' then
+            line = line[0, -1]
+        end
+        lines.push(line)
     end
-    
-    let result = fib(n - 1) + fib(n - 2)
-    fib_memory[n] = result
-    return result
+
+    file.close()
+    return lines
 end
 
-#: { a }, func(a -> b) -> { b }
-func map(table, fun)
-    for key, value in table do
-        table[key] = fun(value)
+#: { char:bool } -> void
+func print_set(set)
+    for i, ch in set do
+        if i > 0 then
+            print(", ")
+        end
+        print(ch)
     end
-    return table
+    println()
 end
-
-# Templates
-#
-# Similar to metatables (I think)
-# No inheritance or anything.
-#
-# Note the `{...}` syntax used for the body, to mirror the table creation
-#
-# A table can function the exact same without defining using a template, but
-# doing so allows better ""type safety"" and ideally more readable code.
-# Default fields and methods will be automatically included in the table.
-
-## A person
-template Person {
-    # Required fields. If a table is defined with the template, and these
-    # values are not supplied, the interpreter will throw an error (or at least
-    # a warning)
-
-    #: string
-    name,
-    #: int
-    age,
-
-    # Default value given
-    #: bool
-    is_alive = true,
-
-    # Methods
-
-    # `self` is a keyword probably. This is not unique to templates.
-    # Not sure what the type-comment syntax should be for `self`
-   
-    ## Get the name
-    #: (Person) -> string
-    func get_name(self)
-        return self.name
-    end
-
-    # `@` signifies an 'overridden' method, kinda...
-    # It is exactly the same as a normal method, but implies that other
-    # modules/functions may expect it to exist (such as `std.format` in this
-    # case)
-    # Similar to `__tostring` in Lua (I think)
-    # Documentation or type comments cannot be inferred, because a generic
-    # `@to_string` method is not defined anywhere. Though doc comments probably
-    # are not necessary here.
-
-    #: (Person) -> string
-    func @to_string(self)
-        return std.format("%s is %d years old", self.name, self.age)
-    end
-}
-
-template Vector {
-    #: int
-    x = 0,
-    #: int
-    y = 0,
-    
-    #: (Vector), Vector -> Vector
-    func @add(self, other)
-        return as Vector {
-            x = self.x + other.x,
-            y = self.y + other.y,
-        }
-    end
-}
 
 
