@@ -31,7 +31,7 @@ struct Scope {
 type ValueHeapID = usize;
 
 #[derive(Debug)]
-enum Value {
+enum ValueOwned {
     Atom(ValueAtom),
     Heap(ValueHeap),
 }
@@ -59,14 +59,14 @@ enum ValueHeap {
 
 type ModuleMap = HashMap<ModuleName, ModuleValues>;
 
-type ModuleValues = HashMap<Ident, Value>;
+type ModuleValues = HashMap<Ident, ValueOwned>;
 
-impl From<ValueAtom> for Value {
+impl From<ValueAtom> for ValueOwned {
     fn from(value: ValueAtom) -> Self {
         Self::Atom(value)
     }
 }
-impl From<ValueHeap> for Value {
+impl From<ValueHeap> for ValueOwned {
     fn from(value: ValueHeap) -> Self {
         Self::Heap(value)
     }
@@ -78,7 +78,7 @@ impl From<ValueAtom> for ValueRef {
     }
 }
 
-impl From<Literal> for Value {
+impl From<Literal> for ValueOwned {
     fn from(value: Literal) -> Self {
         match value {
             Literal::Nil => ValueAtom::Nil.into(),
@@ -89,50 +89,6 @@ impl From<Literal> for Value {
         }
     }
 }
-
-// impl<T> From<T> for ValueRef
-// where
-//     T: Into<Value>,
-// {
-//     fn from(value: T) -> Self {
-//         ValueRef::Owned(value.into())
-//     }
-// }
-
-// impl Clone for Value {
-//     fn clone(&self) -> Self {
-//         match self {
-//             Value::Nil => Value::Nil,
-//             Value::Bool(bool) => Value::Bool(*bool),
-//             Value::Number(number) => Value::Number(*number),
-//             Value::Char(char) => Value::Char(*char),
-//             _ => panic!("Tried to clone non-copy `Value`. This is wrong I think?"),
-//         }
-//     }
-// }
-
-// impl ValueRef {
-//     pub fn copy_or_reference(&mut self) -> Self {
-//         match self {
-//             // Copy reference
-//             ValueRef::Reference(reference) => ValueRef::Reference(*reference),
-//             ValueRef::Owned(value) => {
-//                 let value = match value {
-//                     // Copy atomic value
-//                     Value::Nil => Value::Nil,
-//                     Value::Bool(bool) => Value::Bool(*bool),
-//                     Value::Number(number) => Value::Number(*number),
-//                     Value::Char(char) => Value::Char(*char),
-//                     // Take reference to owned value
-//                     _ => {
-//                         return ValueRef::Reference(value);
-//                     }
-//                 };
-//                 ValueRef::Owned(value)
-//             }
-//         }
-//     }
-// }
 
 impl fmt::Display for ValueAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -154,7 +110,7 @@ impl fmt::Display for ValueHeap {
         }
     }
 }
-impl fmt::Display for Value {
+impl fmt::Display for ValueOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Atom(value) => write!(f, "{}", value),
@@ -173,7 +129,9 @@ impl fmt::Display for ValueRef {
 
 #[derive(Debug)]
 struct Table {
-    entries: HashMap<Value, Value>,
+    //TODO: On insert KEY, clone value ALWAYS.
+    //TODO: On insert VALUE, insert to scope/ctx, and reference (unless atom).
+    entries: HashMap<ValueOwned, ValueRef>,
 }
 
 #[derive(Debug)]
@@ -247,10 +205,10 @@ fn interpret_expr<'a>(ctx: &'a mut Context, expr: Expr) -> Result<ValueRef, Inte
         Expr::Group(inner) => interpret_expr(ctx, *inner),
 
         Expr::Literal(literal) => {
-            let value: Value = literal.into();
+            let value: ValueOwned = literal.into();
             match value {
-                Value::Atom(atom) => Ok(atom.into()),
-                Value::Heap(heap) => {
+                ValueOwned::Atom(atom) => Ok(atom.into()),
+                ValueOwned::Heap(heap) => {
                     let reference = insert_to_heap(ctx, heap);
                     Ok(reference)
                 }
@@ -292,12 +250,9 @@ fn interpret_expr<'a>(ctx: &'a mut Context, expr: Expr) -> Result<ValueRef, Inte
             for segment in chain.chain {
                 head = match segment {
                     AccessibleSegment::Name(name) => {
-                        todo!("access name.{name}");
+                        value_index(ctx, head, Expr::Literal(Literal::String(name)))?
                     }
-                    AccessibleSegment::Index(index) => {
-                        let index = interpret_expr(ctx, index)?;
-                        todo!("access name[{index:?}]");
-                    }
+                    AccessibleSegment::Index(index) => value_index(ctx, head, index)?,
                     AccessibleSegment::Slice(start, end) => {
                         let start = interpret_expr(ctx, start)?;
                         let end = interpret_expr(ctx, end)?;
@@ -318,6 +273,16 @@ fn interpret_expr<'a>(ctx: &'a mut Context, expr: Expr) -> Result<ValueRef, Inte
             Ok(ValueAtom::Nil.into())
         }
     }
+}
+
+//TODO: WILL NOT MUTATE LVALUES
+fn value_index(
+    ctx: &mut Context,
+    value: ValueRef,
+    index: Expr,
+) -> Result<ValueRef, InterpretError> {
+    let index = interpret_expr(ctx, index)?;
+    todo!("access name[{index:?}]");
 }
 
 fn lookup_variable(ctx: &Context, name: &str) -> Option<ValueRef> {
