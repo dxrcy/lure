@@ -1,5 +1,6 @@
 print("FOO")
 let a = 123
-func hello()
+print(a)
+# func hello()
     print("Hello")
-end
+# end
