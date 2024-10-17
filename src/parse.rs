@@ -414,7 +414,7 @@ impl TokenIter {
                             Statement::Assign(statement)
                         }
                         None => {
-                            println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
+                            // println!("\x1b[33massuming start of expr ::\x1b[0m {}", token);
                             Statement::Expr(self.expect_expr()?)
                         }
                     }
