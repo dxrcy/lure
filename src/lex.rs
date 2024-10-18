@@ -84,7 +84,7 @@ make_keyword! {
     "return" => Return,
     "break" => Break,
     "continue" => Continue,
-    "as" => As,
+    "from" => From,
     "self" => Self_,
     "and" => And,
     "or" => Or,
@@ -110,7 +110,7 @@ make_keyword! {
     "*" => Asterisk,
     "/" => Slash,
     "%" => Percent,
-    "&" => Ampersand,
+    ":" => Colon,
     ".." => Spread,
 }
 
@@ -167,10 +167,27 @@ pub fn lex_tokens(file: &str) -> Result<Vec<TokenRef>, ParseError> {
             continue;
         }
         if ch == '#' {
-            for ch in chars.by_ref() {
-                if ch == '\n' {
-                    line += 1;
-                    break;
+            if chars.peek() == Some('[') && chars.peek() == Some('[') {
+                let mut was_first_bracket = false;
+                while let Some(ch) = chars.by_ref().next() {
+                    if ch == '\n' {
+                        line += 1;
+                    }
+                    if ch == ']' {
+                        if was_first_bracket {
+                            break;
+                        }
+                        was_first_bracket = true;
+                    }
+                }
+            } else {
+                chars.back();
+                chars.back();
+                for ch in chars.by_ref() {
+                    if ch == '\n' {
+                        line += 1;
+                        break;
+                    }
                 }
             }
             continue;

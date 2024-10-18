@@ -206,7 +206,8 @@ pub struct ConditionalBranch {
 
 #[derive(Debug, PartialEq)]
 pub struct ForStatement {
-    pub names: Plural<Ident>,
+    pub key: Option<Ident>,
+    pub value: Option<Ident>,
     pub source: ForSource,
     pub body: StatementBody,
 }
@@ -406,8 +407,8 @@ impl TokenIter {
                     Statement::Return(self.expect_return_statement()?)
                 }
 
-                token => {
-                    let token = token.to_owned();
+                _ => {
+                    // let token = token.to_owned();
                     match self.try_assign_statement() {
                         Some(statement) => {
                             let statement = statement?;
@@ -506,6 +507,10 @@ impl TokenIter {
     fn expect_template(&mut self) -> Result<Template, ParseError> {
         let name = self.expect_ident()?;
 
+        self.expect_keyword(
+            Keyword::SingleEqual,
+            "`template` statement must include `=`",
+        )?;
         self.expect_keyword(Keyword::BraceLeft, "`template` statement must include `{`")?;
 
         let mut entries = Vec::new();
@@ -802,15 +807,22 @@ impl TokenIter {
     }
 
     fn expect_for_statement(&mut self) -> Result<ForStatement, ParseError> {
-        let key_name = self.expect_ident()?;
-
-        let mut value_names = Vec::new();
-        while self.peek() == &Token::Keyword(Keyword::Comma) {
+        let key = self.expect_ident_or_spread()?;
+        let value = if self.peek() == &Token::Keyword(Keyword::SingleEqual) {
             self.next();
-            let name = self.expect_ident()?;
-            value_names.push(name);
-        }
-        let names = Plural::from(key_name, value_names);
+            let value = self.expect_ident_or_spread()?;
+            if key.is_none() {
+                return Err(unexpected!(
+                    self.line(),
+                    Keyword::Spread,
+                    ["identifier name"],
+                    "cannot discard key in this way. Use `for .. in` or `for value in` instead"
+                ));
+            }
+            value
+        } else {
+            None
+        };
 
         self.expect_keyword(Keyword::In, "`for` statement must include `in` keyword")?;
 
@@ -842,7 +854,8 @@ impl TokenIter {
         self.expect_keyword_end()?;
 
         Ok(ForStatement {
-            names,
+            key,
+            value,
             source,
             body,
         })
@@ -877,6 +890,19 @@ impl TokenIter {
         }
     }
 
+    fn expect_ident_or_spread(&mut self) -> Result<Option<Ident>, ParseError> {
+        match self.next() {
+            Token::Keyword(Keyword::Spread) => Ok(None),
+            Token::Ident(ident) => Ok(Some(ident.to_owned())),
+            token => Err(unexpected!(
+                self.line(),
+                token.to_owned(),
+                ["identifier name", Keyword::Spread],
+                // reason omitted
+            )),
+        }
+    }
+
     fn expect_expr(&mut self) -> Result<Expr, ParseError> {
         let left = self.expect_subexpr()?;
 
@@ -886,7 +912,7 @@ impl TokenIter {
             Token::Keyword(Keyword::Asterisk) => BinaryOp::Multiply,
             Token::Keyword(Keyword::Slash) => BinaryOp::Divide,
             Token::Keyword(Keyword::Percent) => BinaryOp::Modulo,
-            Token::Keyword(Keyword::Ampersand) => BinaryOp::Concat, // This may change
+            Token::Keyword(Keyword::Colon) => BinaryOp::Concat, // This may change
             Token::Keyword(Keyword::And) => BinaryOp::And,
             Token::Keyword(Keyword::Or) => BinaryOp::Or,
             Token::Keyword(Keyword::DoubleEqual) => BinaryOp::Equal,
@@ -996,7 +1022,7 @@ impl TokenIter {
                 });
             }
 
-            Token::Keyword(Keyword::As) => {
+            Token::Keyword(Keyword::From) => {
                 let origin = self.expect_chain_origin()?;
                 let name = self.expect_assignable_chain(origin)?;
                 self.expect_keyword(

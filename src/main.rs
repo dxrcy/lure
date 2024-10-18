@@ -1,8 +1,8 @@
 use std::fs;
 
 fn main() {
-    // let filename = "src/example.lur";
-    let filename = "example/main.lur";
+    let filename = "src/example.lur";
+    // let filename = "example/main.lur";
 
     let file = fs::read_to_string(filename).expect("Failed to read file");
 

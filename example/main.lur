@@ -69,12 +69,13 @@ a.b.c
 a[0]
 a.b[0]
 a[0].b
-(a).b
-(a.b).c
-(a)[0]
-(a[0]).b
-(a.b)[0]
-a.(b[0]) # INVALID
+# TODO: Support these lvalue syntaxes
+# (a).b
+# (a.b).c
+# (a)[0]
+# (a[0]).b
+# (a.b)[0]
+# a.(b[0]) # INVALID
 a[b[0]]  # do this instead
 
 let s = "abc"
@@ -250,7 +251,7 @@ if john == john then
 end
 
 # Same as dict==dict comparison above
-let a = [2, 3, 4]
+let a = { 2, 3, 4 }
 if a == a then
 end
 

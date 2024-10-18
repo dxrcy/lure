@@ -168,7 +168,7 @@ module io
     let stderr = from File { path = "/dev/stderr", handle = core.stderr }
 
     ## I/O error
-    template Error {
+    template Error = {
         #: int
         code,
         #: string
@@ -176,7 +176,7 @@ module io
     }
 
     ## Open file
-    template File {
+    template File = {
         #: string
         path,
         #: int
@@ -284,11 +284,13 @@ module io
     ## Used for debugging.
     #: ..any -> void
     func log(..args)
-        for i, arg in args do
+        i = 0
+        for arg in args do
             if i > 0 then
                 eprint(" ")
             end
             eprint("%", arg)
+            i = i + 1
         end
         eprintln()
     end

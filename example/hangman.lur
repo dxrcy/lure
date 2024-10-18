@@ -23,13 +23,13 @@ func main(args)
         let incorrect = from Set {}
 
         while true do
-            for _ in 0 to 5 do
+            for .. in 0 to 5 do
                 print("\x1b[A\x1b[K")
             end
 
             let visible = ""
             let is_win = true
-            for _, ch in word do
+            for ch in word do
                 if correct.contains(ch) then
                     visible = visible : ch
                 else
@@ -99,7 +99,7 @@ func read_file_lines(filename)
     return lines
 end
 
-template Set {
+template Set = {
     #: { char = bool }
     items = {},
 

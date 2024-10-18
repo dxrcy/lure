@@ -92,7 +92,6 @@ impl Display for ParseError {
                 const EQ: &str = "Use `==` for a equal comparison";
                 const NEQ: &str = "Use `!=` for a not-equal comparison";
                 const MEMBER: &str = "Use `.` to access a member of a value";
-                const TABLE_KEY: &str = "Use `:` to declare a table value with a key";
                 const TERNARY: &str = "Use an `if-else` block as a ternary expression";
 
                 let reasons: &[&str] = match found.as_str() {
@@ -113,8 +112,8 @@ impl Display for ParseError {
                     "+=" | "-=" | "*=" | "%=" => &[ARITH_ASSIGN],
                     "**=" => &[ARITH_ASSIGN, EXPONENT],
                     "&=" | "|=" | "^=" | "<<=" | ">>=" => &[BITWISE, ARITH_ASSIGN],
-                    ":" => &[MEMBER, TABLE_KEY],
                     "::" => &[MEMBER],
+                    "&" => &[BITWISE, LOG_AND, CONCAT],
                     "?" => &[TERNARY],
                     "<<" | ">>" | "<<<" | ">>>" => &[BITWISE],
                     "`" => &[
