@@ -34,7 +34,7 @@ let fib = func(n)
     if n < len(fib_memory) then
         return fib_memory[n]
     end
-    
+
     let result = fib(n - 1) + fib(n - 2)
     fib_memory[n] = result
     return result
@@ -42,7 +42,7 @@ end
 
 #: { a }, func(a -> b) -> { b }
 func map(table, fun)
-    for key, value in table do
+    for key = value in table do
         table[key] = fun(value)
     end
     return table
@@ -78,7 +78,7 @@ template Person = {
 
     # `self` is a keyword probably. This is not unique to templates.
     # Not sure what the type-comment syntax should be for `self`
-   
+
     ## Get the name
     #: (Person) -> string
     func get_name(self)
@@ -96,7 +96,7 @@ template Person = {
 
     #: (Person) -> string
     func @to_string(self)
-        return std.format("%s is %d years old", self.name, self.age)
+        return std.format("% is % years old", self.name, self.age)
     end
 }
 
@@ -105,13 +105,18 @@ template Vector = {
     x = 0,
     #: int
     y = 0,
-    
+
     #: (Vector), Vector -> Vector
     func @add(self, other)
-        return as Vector {
+        return from Vector {
             x = self.x + other.x,
             y = self.y + other.y,
         }
+    end
+
+    #: (Vector) -> string
+    func @to_string(self)
+        return std.format("(%, %)", self.x, self.y)
     end
 }
 

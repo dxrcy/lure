@@ -1,7 +1,7 @@
 #! -- Provided by runtime --
 #!
-#! These functions will not be written in Lure, but they will be exposed to
-#! `std`, or possibly any module.
+#! These functions will not be written in Lure-like psuedocode, but they will
+#! be exposed to `std`, or possibly any module.
 #!
 #! Only shown here for documentation purposes.
 
@@ -23,6 +23,7 @@ func write(file_handle, text) end
 #: int -> { int, string }
 func read(file_handle, length) end
 
+# Make sure it doesn't contain a trailing `\r` !
 #: int -> { int, string }
 func read_line(file_handle) end
 
@@ -81,7 +82,7 @@ func to_string(arg)
     end
 end
 
-#: { k:v }, k -> v
+#: { k = v }, k -> v
 func get(arg, index)
     # Something like:
     match type_of(arg)
@@ -95,7 +96,7 @@ func get(arg, index)
     end
 end
 
-#: { int:v }, int, int -> v
+#: { int = v }, int, int -> v
 func slice(arg, start, end)
     # Something like:
     match type_of(arg)
@@ -109,7 +110,7 @@ func slice(arg, start, end)
     end
 end
 
-#: { k:v }, k, v -> void
+#: { k = v }, k, v -> void
 func set(arg, index, value)
     # Something like:
     match type_of(arg)
@@ -123,7 +124,7 @@ func set(arg, index, value)
     end
 end
 
-#: { int:v }, v -> void
+#: { int = v }, v -> void
 func push(arg, value)
     # Something like:
     match type_of(arg)

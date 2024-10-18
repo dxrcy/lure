@@ -1,15 +1,17 @@
 #!/bin/lure
 
-# A file is a module
-# A module contains statements
-# A statement can be:
-# - function
-# - template
-# - another module
-# - variable declaration
-# - assignment operation
-# - loop / conditional
-# - expression (incl. function call)
+#[[ This is a block comment
+    A file is a module
+    A module contains statements
+    A statement can be:
+    - function
+    - template
+    - another module
+    - variable declaration
+    - assignment operation
+    - loop / conditional
+    - expression (incl. function call)
+]]
 
 # NO statements/functions are hoisted
 
@@ -33,11 +35,14 @@ println("Hello World")
 # All variables and items are scoped by block
 
 let x = 2
-x = x + 3 # Advanced assignment operators are NOT supported
-println(x)
+x = x + 3 # Assignment operators are NOT supported
+log(x)
 
 # Re-declaration of variable shadows original
 let x = 4
+
+y = 4   # Throws error as y is not yet declared
+        # This might be a bad idea
 
 if x > 3 then
     println("> 3")
@@ -64,64 +69,76 @@ a.b.c
 a[0]
 a.b[0]
 a[0].b
+(a).b
+(a.b).c
+(a)[0]
+(a[0]).b
+(a.b)[0]
+a.(b[0]) # INVALID
+a[b[0]]  # do this instead
 
 let s = "abc"
 log(s)
-let s2 = s & "def" # Concatenation operator is undecided (cannot use `..`)
-println(s, s2)
+let s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
+log(s, s2)
 
 # Simple range for-loop
-for i in 0 to 10 do
+for i in 0 to 10 do # Always inclusive to exclusive
     log(i) # 0, 1, ... 9
 end
 for i in 0 to len(list) do
-    println("{}: {}\n", i, list[i])
+    println("%: %\n", i, list[i])
 end
 
 let list = { 4, 5, 6 }
 
-println(len(list))
+log(len(list))
 
-# Maybe use different syntax to comma separated idents
-for i in list do
-    println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+# Maybe use different syntax for key/value binding
+# Shouldn't use `i: value` unfortunately. Not consistent with dict literals
+# Maybe `i, item`
+for value in list do
+    println("%\n", value) # 4, 5, 6
 end
-for i, item in list do
-    println("{}: {}\n", i, item) # 0: 4, 1: 5, 2: 6
+for i = value in list do
+    println("%: %\n", i, value) # 0: 4, 1: 5, 2: 6
 end
-for _, item in list do
-    println("{}\n", item) # 4, 5, 6
+for i = .. in list do
+    println("%\n", i) # 0, 1, 2
 end
-# ^ Underscore is used to ignore a value
+# ^ `..` is used to ignore a value
+# Alternatively, underscore could be used
 
 let dict = {
     a = 1,
     b = 2,
 }
 
-for key in dict do
-    println("{}: {}\n", key, dict[key]) # a: 1, b: 2
+for value in dict do
+    println("%\n", value) # 1, 2
 end
-for key, value in dict do
-    println("{}: {}\n", key, value) # a: 1, b: 2
+for key = value in dict do
+    println("%: %\n", key, value) # a: 1, b: 2
 end
-for _, value in dict do
-    println("{}\n", value) # 1 2
+for key = .. in dict do
+    println("%\n", value) # a, b
 end
 
 let mixed = {
-    4,
+    4,      # Implicitly `0 = 4`
     a = 5,
+    # if `6` was here it would be implicitly `1 = 6`
+    # (1 is the lowest non-negative number not already used as a key)
 }
 
-for key in mixed do
-    println("{}: {}\n", key, mixed[key]) # 0: 4, a: 5
+for value in mixed do
+    println("%\n", value) # 4, 5
 end
-for key, value in mixed do
-    println("{}: {}\n", key, value) # 0: 4, a: 5
+for key = value in mixed do
+    println("%: %\n", key, value) # 0: 4, a: 5
 end
-for _, value in mixed do
-    println("{}\n", value) # 4, 5
+for key = .. in mixed do
+    println("%\n", key) # 0, a
 end
 
 let a = 0
@@ -144,8 +161,9 @@ log(lib.add(5, 6))
 
 log(lib.PI)
 
-# Maybe change keyword `as` for templates ?
-let john = as lib.Person {
+# Maybe change keyword `from` for templates ?
+# Value immediately drops knowledge of template when constructed
+let john = from lib.Person {
     name = "John",
     age = 30,
 }
@@ -163,7 +181,7 @@ assert(type_of(john),  "table") # template "person" is no longer relevant
 
 # A template is used as a value. Not allowed.
 # Interpreter will throw an error when checking if variables are declared
-assert(type_of(person), "never")
+assert(type_of(lib.Person), "never")
 
 # This also *might* throw an error?
 # Unless modules are converted to tables
@@ -185,6 +203,7 @@ assert(a[1, 2], a.slice(1, 2))
 assert(a[0, -1], a.slice(0, -1))
 a[0] = "A"
 a.set(0, "A")
+a[0, 1] = "AB" # Parsing error: Not an LValue
 # Panic if type is not table or string
 let n = 123
 n[0]
@@ -221,8 +240,18 @@ end
 if john.name == "John" then
     println("Hello John")
 else
-    john.name
+    # john.name
     println("Who are you")
+end
+
+# Checks each key/value RECURSIVELY!
+# Works, but probably not what u want
+if john == john then
+end
+
+# Same as dict==dict comparison above
+let a = [2, 3, 4]
+if a == a then
 end
 
 

@@ -55,14 +55,21 @@ module util
         return result.ok
     end
 
-    # Rename to `format_try` or something?
+    # Rename to `format_try` or `format_checked` or something?
     # A nice naming scheme will place `xyz` and `try_xyz` close alphabetically
 
     #: string, ..any -> { ok = string } | { err = string }
     func try_format(fmt, ..args)
         if fmt == nil then
             return ""
-        elif len(args) == 0 then
+        end
+        if type_of(fmt) != "string" then
+            if len(args) > 0 then
+                return { err = "Too many arguments" }
+            end
+            return to_string(fmt)
+        end
+        if len(args) == 0 then
             return fmt
         end
 
@@ -70,38 +77,25 @@ module util
         let arg_index = 0
 
         for i in 0 to len(fmt) do
-            if fmt[i] == '{' then
-                i = i + 1
-                if i >= len(fmt) then
-                    return { err = "Unexpected end of format string. Expected `}}`" }
-                elif fmt[i] == '{' then
-                    output = output & '{'
-                    continue
-                elif fmt[i] != '}' then
-                    return { err = "Unexpected character `" & fmt[i] & "`. Expected `}}`" }
-                end
-                if arg_index >= len(args) then
-                    return { err = "Not enough arguments" }
-                end
-                output = output & to_string(args[arg_index])
-                arg_index = arg_index + 1
-            elif fmt[i] == '}' then
-                i = i + 1
-                if fmt[i] == '}' then
-                    output = output & '}'
+            if fmt[i] == "%" then
+                if fmt[i + 1] == "%" then
+                    i = i + 1
                 else
-                    return { err = "Unexpected `}}`" }
+                    if arg_index >= len(args) then
+                        return { err = "Not enough arguments" }
+                    end
+                    output = output : to_string(args[arg_index])
+                    arg_index = arg_index + 1
+                    continue
                 end
-            else
-                output = output & fmt[i]
             end
+            output = output : fmt[i]
         end
 
         if arg_index + 1 < len(args) then
             return { err = "Too many arguments" }
         end
-
-        return { ok = output }
+        return output
     end
 
     ## Return `true` if value is an integer
@@ -120,25 +114,18 @@ end
 module sys
     # (inherit type signature and doc comments)
     let exit = core.exit
+    let io = std.io
 
     # Underscored name is not treated specially by the interpreter, but may
-    # signify a 'private' item to the developer or linter
+    # signify a 'private' item to the LSP, developer, or linter
 
-    #: string
-    func _panic_unformatted(message)
-        write(io.stderr, kind)
-        exit(255)
-    end
-
-    #: string, string | nil, ..any -> never
+    #: string | nil, string | nil, ..any -> never
     func _panic_kind(kind, fmt, ..args)
-        if fmt == nil then
-            _panic_unformatted(kind)
-        elif len(args) < 1 then
-            _panic_unformatted(kind & ": " & fmt)
-        else
-            _panic_unformatted(kind & ": " & std.format(fmt, ..args))
+        if fmt != nil then
+            write(io.stderr, kind : ": ")
         end
+        write(io.stderr, fmt, ..args)
+        exit(255)
     end
 
     #: string | nil, ..any -> never
@@ -171,13 +158,14 @@ end
 module io
     ## Standard out
     #: File
-    let stdin  = as File { path = "/dev/stdin", handle = core.stdin }
+    let stdin  = from File { path = "/dev/stdin", handle = core.stdin }
     ## Standard in
     #: File
-    let stdout = as File { path = "/dev/stdout", handle = core.stdout }
+    let stdout = from File { path = "/dev/stdout", handle = core.stdout }
     ## Standard error
     #: File
-    let stderr = as File { path = "/dev/stderr", handle = core.stderr }
+    # TODO: Specify unbuffered
+    let stderr = from File { path = "/dev/stderr", handle = core.stderr }
 
     ## I/O error
     template Error {
@@ -200,7 +188,7 @@ module io
             let result = core.open(path, mode)
             let err_code = result[0]
             let handle = result[1]
-            return io._result_from(err_code, as File {
+            return io._result_from(err_code, from File {
                 path = filename,
                 handle = handle,
             })
@@ -212,7 +200,9 @@ module io
             return io._result_from(err_code, nil)
         end
 
-        func read(self, ) todo() end
+        func read(self, )
+            todo()
+        end
 
         ## Read a line from file
         #: (File) -> { err = Error } | { ok = string }
@@ -235,7 +225,7 @@ module io
         ## Write formatted arguments to file, with a newline.
         #: (File), string, ..any -> { err = Error } | { ok = nil }
         func write_line(self, fmt, ..args)
-            return write(self, fmt & '\n', ..args)
+            return write(self, fmt : '\n', ..args)
         end
     }
 
@@ -252,7 +242,7 @@ module io
             "Unknown error"
         end
         return {
-            err = as Error {
+            err = from Error {
                 code = code,
                 message = message,
             }
@@ -272,26 +262,35 @@ module io
     func print(fmt, ..args)
         assert(stdout.write(fmt, ..args).err == nil)
     end
-
     ## Print formatted arguments to stdout, with a newline.
     #: string, ..any -> void
     func println(fmt, ..args)
-        assert(stdout.write(fmt & '\n', ..args).err == nil)
+        assert(stdout.write(fmt : '\n', ..args).err == nil)
     end
 
-    # ?? Maybe use stderr instead ?
-    ## Print each argument to stdout, with newline.
+    ## Print formatted arguments to stderr, without a newline.
+    #: string, ..any -> void
+    func eprint(fmt, ..args)
+        assert(stderr.write(fmt, ..args).err == nil)
+    end
+    ## Print formatted arguments to stderr, with a newline.
+    #: string, ..any -> void
+    func eprintln(fmt, ..args)
+        assert(stderr.write(fmt : '\n', ..args).err == nil)
+    end
+
+    ## Print each argument to stderr, with newline.
     ##
     ## Used for debugging.
     #: ..any -> void
     func log(..args)
         for i, arg in args do
             if i > 0 then
-                print(" ")
+                eprint(" ")
             end
-            print("{}", arg)
+            eprint("%", arg)
         end
-        println()
+        eprintln()
     end
 end
 

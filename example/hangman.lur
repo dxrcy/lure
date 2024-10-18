@@ -19,8 +19,8 @@ func main(args)
         let index = math.random_int(0, len(words))
         let word = words[index]
 
-        let correct = {}
-        let incorrect = {}
+        let correct = from Set {}
+        let incorrect = from Set {}
 
         while true do
             for _ in 0 to 5 do
@@ -30,10 +30,10 @@ func main(args)
             let visible = ""
             let is_win = true
             for _, ch in word do
-                if correct[ch] then
-                    visible = visible & ch
+                if correct.contains(ch) then
+                    visible = visible : ch
                 else
-                    visible = visible & '_'
+                    visible = visible : '_'
                     is_win = false
                 end
             end
@@ -41,40 +41,35 @@ func main(args)
             if is_win then
                 println("---------")
                 println("You win! :)")
-                println("The word was: '{}'\n", word)
+                println("The word was: '%'\n", word)
                 println("---------")
-                _ = io.scan_line()
+                io.read_line()
                 break
             elif len(incorrect) >= 6 then
                 println("---------")
                 println("You lose! :(")
-                println("The word was: '{}'\n", word)
+                println("The word was: '%'\n", word)
                 println("---------")
-                _ = io.scan_line()
+                io.read_line()
                 break
             end
 
             println(visible)
-            println("Chances: {}\n", 6 - len(incorrect))
-            println("Correct: ")
-            print_set(correct)
-            println("Inorrect: ")
-            print_set(incorrect)
+            println("Chances: %\n", 6 - len(incorrect))
+            println("Correct: %", correct)
+            println("Inorrect: %", incorrect)
             print("Guess: ")
 
-            let line = io.scan_line()
-            if len(line) >= 1 then
-                let guess = line[0]
+            let line = io.read_line()
+            if len(line) < 1 then
+                continue
+            end
 
-                if word.contains(guess) then
-                    if not correct[guess] then
-                        correct[guess] = true
-                    end
-                else
-                    if not incorrect[guess] then
-                        incorrect[guess] = true
-                    end
-                end
+            let guess = line[0]
+            if word.contains(guess) then
+                correct.add(guess)
+            else
+                incorrect.add(guess)
             end
         end
     end
@@ -94,11 +89,8 @@ func read_file_lines(filename)
         if err != nil then
             return nil
         end
-        if line == nil then
+        if len(line) < 1 then
             break
-        end
-        if line[-1] == '\r' then
-            line = line[0, -1]
         end
         lines.push(line)
     end
@@ -107,14 +99,32 @@ func read_file_lines(filename)
     return lines
 end
 
-#: { char:bool } -> void
-func print_set(set)
-    for i, ch in set do
-        if i > 0 then
-            print(", ")
+template Set {
+    #: { char = bool }
+    items = {},
+
+    #: (Set), char -> void
+    func add(self, item)
+        if not self.contains(item) then
+            self.items[item] = true
         end
-        print(ch)
     end
-    println()
-end
+
+    #: (Set), char -> bool
+    func contains(self, item)
+        return self.items[item] == true
+    end
+
+    #: (Set) -> string
+    func @to_string(self)
+        let output = ""
+        for item in self.items do
+            if len(output) > 0 then
+                output = output : ", "
+            end
+            output = output : item
+        end
+        return output
+    end
+}
 
