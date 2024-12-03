@@ -8,7 +8,7 @@ core = require("@core")
 # Variable re-exports inherit type signature and doc comments
 
 ## Automatically imported items
-module prelude
+prelude = {
     io = io
     sys = sys
     math = math
@@ -28,7 +28,7 @@ module prelude
     to_string = util.to_string
     format = util.format
     is_int = util.is_int
-end
+}
 
 # The `..` operator is used for variadic arguments.
 # Only one is allowed in a function signature, as the last parameter.
@@ -36,7 +36,7 @@ end
 # Passing `..list` or `..{ 3, 4 }` into another function passes every argument
 # individually, instead of passing the whole table.
 
-module util
+util = {
     len = core.len
     to_string = core.to_string
     compare = core.compare
@@ -103,15 +103,15 @@ module util
     func is_int(value)
         return type_of(value) != "number" and value % 1 == 0
     end
-end
+}
 
 ## Type reflection
-module reflection
+reflection = {
     type_of = core.type_of
-end
+}
 
 ## System
-module sys
+sys = {
     # (inherit type signature and doc comments)
     exit = core.exit
     io = std.io
@@ -152,10 +152,10 @@ module sys
     func command(..args)
         return core.system(args)
     end
-end
+}
 
 ## Input/Output
-module io
+io = {
     ## Standard out
     #: File
     stdin  = from File { path = "/dev/stdin", handle = core.stdin }
@@ -294,10 +294,10 @@ module io
         end
         eprintln()
     end
-end
+}
 
 ## Math(s)
-module math
+math = {
     ## PI
     PI = 3.141592653589793
 
@@ -315,5 +315,5 @@ module math
     func random_int(min, max)
         return floor(random_float(min, max))
     end
-end
+}
 
