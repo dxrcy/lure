@@ -18,7 +18,6 @@ pub enum Statement {
     Module(Module),
     Template(Template),
     Func(FuncStatement),
-    Let(LetStatement),
     Assign(AssignStatement),
     If(IfStatement),
     While(WhileStatement),
@@ -26,6 +25,8 @@ pub enum Statement {
     Return(ReturnStatement),
     Break,
     Continue,
+    // TODO(feat): Don't allow expr as statement
+    // Only function calls
     Expr(Expr),
 }
 
@@ -119,12 +120,6 @@ pub struct FuncParams {
 pub struct FuncArgs {
     pub args: Vec<Expr>,
     pub spread_arg: Option<Box<Expr>>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct LetStatement {
-    pub names: Plural<Ident>,
-    pub value: Expr,
 }
 
 #[derive(Debug, PartialEq)]
@@ -249,11 +244,11 @@ pub struct Plural<T> {
     pub rest: Vec<T>,
 }
 
-impl<T> Plural<T> {
-    pub fn from(first: T, rest: Vec<T>) -> Self {
-        Self { first, rest }
-    }
-}
+// impl<T> Plural<T> {
+//     pub fn from(first: T, rest: Vec<T>) -> Self {
+//         Self { first, rest }
+//     }
+// }
 
 macro_rules! unexpected {
     (
@@ -365,10 +360,6 @@ impl TokenIter {
                     break;
                 }
 
-                Token::Keyword(Keyword::Let) => {
-                    self.next();
-                    Statement::Let(self.expect_let_statement()?)
-                }
                 Token::Keyword(Keyword::Func) => {
                     self.next();
                     Statement::Func(self.expect_func_statement()?)
@@ -470,28 +461,6 @@ impl TokenIter {
         }
 
         Ok(ReturnStatement { values })
-    }
-
-    fn expect_let_statement(&mut self) -> Result<LetStatement, ParseError> {
-        let name_first = self.expect_ident()?;
-
-        let mut name_rest = Vec::new();
-        while self.peek() == &Token::Keyword(Keyword::Comma) {
-            self.next();
-            let name = self.expect_ident()?;
-            name_rest.push(name);
-        }
-
-        let names = Plural::from(name_first, name_rest);
-
-        self.expect_keyword(
-            Keyword::SingleEqual,
-            "`let` declaration must include `=` to instantiate variable",
-        )?;
-
-        let value = self.expect_expr()?;
-
-        Ok(LetStatement { names, value })
     }
 
     fn expect_module(&mut self) -> Result<Module, ParseError> {
@@ -1047,7 +1016,6 @@ impl TokenIter {
             token => {
                 let token = token.to_owned();
                 let reason = match token {
-                    Token::Keyword(Keyword::Let) => "Cannot use `let` declaration as an expression",
                     Token::Keyword(Keyword::For) => "Cannot use `for` statement as an expression",
                     Token::Keyword(Keyword::While) => {
                         "Cannot use `while` statement as an expression"

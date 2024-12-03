@@ -69,7 +69,6 @@ make_keyword! {
     "module" => Module,
     "template" => Template,
     "func" => Func,
-    "let" => Let,
     "end" => End,
     "if" => If,
     "elif" => Elif,
