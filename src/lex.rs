@@ -66,7 +66,6 @@ macro_rules! make_keyword {
 
 // Does not include `nil`, `true`, `false`
 make_keyword! {
-    "module" => Module,
     "template" => Template,
     "func" => Func,
     "end" => End,

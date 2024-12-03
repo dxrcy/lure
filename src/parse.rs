@@ -3,19 +3,12 @@ use crate::{
     ParseError, ParseErrorKind, TokenIter,
 };
 
-#[derive(Debug, PartialEq)]
-pub struct Module {
-    pub name: ModuleName,
-    pub body: StatementBody,
-}
-
-pub type ModuleName = String;
+// pub type ModuleName = String;
 
 pub type StatementBody = Vec<Statement>;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Module(Module),
     Template(Template),
     Func(FuncStatement),
     Assign(AssignStatement),
@@ -376,10 +369,6 @@ impl TokenIter {
                     self.next();
                     Statement::While(self.expect_while_statement()?)
                 }
-                Token::Keyword(Keyword::Module) => {
-                    self.next();
-                    Statement::Module(self.expect_module()?)
-                }
                 Token::Keyword(Keyword::Template) => {
                     self.next();
                     Statement::Template(self.expect_template()?)
@@ -461,16 +450,6 @@ impl TokenIter {
         }
 
         Ok(ReturnStatement { values })
-    }
-
-    fn expect_module(&mut self) -> Result<Module, ParseError> {
-        let name = self.expect_ident()?;
-
-        let body = self.expect_body()?;
-
-        self.expect_keyword_end()?;
-
-        Ok(Module { name, body })
     }
 
     fn expect_template(&mut self) -> Result<Template, ParseError> {
@@ -1020,7 +999,6 @@ impl TokenIter {
                     Token::Keyword(Keyword::While) => {
                         "Cannot use `while` statement as an expression"
                     }
-                    Token::Keyword(Keyword::Module) => "Cannot use module as an expression",
                     Token::Keyword(Keyword::Template) => "Cannot use template as an expression",
                     // Generic reason
                     _ => "Cannot parse the tokens as an expression",
