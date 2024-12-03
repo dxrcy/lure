@@ -33,11 +33,11 @@ func system(args) end
 # TODO: idk what to do for files...
 
 #: int
-let stdout = 0
+stdout = 0
 #: int
-let stdin = 1
+stdin = 1
 #: int
-let stderr = 2
+stderr = 2
 
 # MATCH STATEMENTS ARE USED <HERE> BECAUSE THIS WILL ALL BE WRITTEN IN RUST
 # ANYWAY!! BUT THEY ARE NOT ACTUALLY VALID IN THIS LANGUAGE!!

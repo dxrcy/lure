@@ -1,29 +1,29 @@
 #! Some library module example
 
 # (These are also redudant)
-let assert = std.util.assert
-let is_int = std.util.is_int
+assert = std.util.assert
+is_int = std.util.is_int
 
 #: a int, b int -> int
 func add(a, b)
     return a + b
 end
 
-let table = {
+table = {
     key = "value",
     # Maybe this will be supported ??
     nested.key = "value",
 }
 
-let PI = std.math.PI
+PI = std.math.PI
 
-let fib_memory = {}
+fib_memory = {}
 
 # Alternate function definition
 # `func(...) ... end` is an expression
 
 #: int -> int
-let fib = func(n)
+fib = func(n)
     # panics if not met
     assert(is_int(n) and n >= 0)
 
@@ -35,7 +35,7 @@ let fib = func(n)
         return fib_memory[n]
     end
 
-    let result = fib(n - 1) + fib(n - 2)
+    result = fib(n - 1) + fib(n - 2)
     fib_memory[n] = result
     return result
 end

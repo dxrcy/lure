@@ -3,31 +3,31 @@
 # Some of these functions *may* be moved to `core` to improve performance?
 # ^ Probably not
 
-let core = require("@core")
+core = require("@core")
 
 # Variable re-exports inherit type signature and doc comments
 
 ## Automatically imported items
 module prelude
-    let io = io
-    let sys = sys
-    let math = math
+    io = io
+    sys = sys
+    math = math
 
-    let exit = sys.exit
-    let panic = sys.panic
-    let todo = sys.todo
-    let assert = sys.assert
+    exit = sys.exit
+    panic = sys.panic
+    todo = sys.todo
+    assert = sys.assert
 
-    let print = io.print
-    let println = io.println
-    let File = io.File
+    print = io.print
+    println = io.println
+    File = io.File
 
-    let type_of = reflection.type_of
+    type_of = reflection.type_of
 
-    let len = util.len
-    let to_string = util.to_string
-    let format = util.format
-    let is_int = util.is_int
+    len = util.len
+    to_string = util.to_string
+    format = util.format
+    is_int = util.is_int
 end
 
 # The `..` operator is used for variadic arguments.
@@ -37,9 +37,9 @@ end
 # individually, instead of passing the whole table.
 
 module util
-    let len = core.len
-    let to_string = core.to_string
-    let compare = core.compare
+    len = core.len
+    to_string = core.to_string
+    compare = core.compare
 
     ## Format arguments to string
     ##
@@ -48,7 +48,7 @@ module util
     ## Panics if an error occurs
     #: string, ..any -> string
     func format(fmt, ..args)
-        let result = try_format(fmt, ..args)
+        result = try_format(fmt, ..args)
         if result.err != nil then
             panic(result.err)
         end
@@ -73,8 +73,8 @@ module util
             return fmt
         end
 
-        let output = ""
-        let arg_index = 0
+        output = ""
+        arg_index = 0
 
         for i in 0 to len(fmt) do
             if fmt[i] == "%" then
@@ -107,14 +107,14 @@ end
 
 ## Type reflection
 module reflection
-    let type_of = core.type_of
+    type_of = core.type_of
 end
 
 ## System
 module sys
     # (inherit type signature and doc comments)
-    let exit = core.exit
-    let io = std.io
+    exit = core.exit
+    io = std.io
 
     # Underscored name is not treated specially by the interpreter, but may
     # signify a 'private' item to the LSP, developer, or linter
@@ -158,14 +158,14 @@ end
 module io
     ## Standard out
     #: File
-    let stdin  = from File { path = "/dev/stdin", handle = core.stdin }
+    stdin  = from File { path = "/dev/stdin", handle = core.stdin }
     ## Standard in
     #: File
-    let stdout = from File { path = "/dev/stdout", handle = core.stdout }
+    stdout = from File { path = "/dev/stdout", handle = core.stdout }
     ## Standard error
     #: File
     # TODO: Specify unbuffered
-    let stderr = from File { path = "/dev/stderr", handle = core.stderr }
+    stderr = from File { path = "/dev/stderr", handle = core.stderr }
 
     ## I/O error
     template Error = {
@@ -185,9 +185,9 @@ module io
 
         #: string, string -> { err = Error } | { ok = File }
         func open(path, mode)
-            let result = core.open(path, mode)
-            let err_code = result[0]
-            let handle = result[1]
+            result = core.open(path, mode)
+            err_code = result[0]
+            handle = result[1]
             return io._result_from(err_code, from File {
                 path = filename,
                 handle = handle,
@@ -196,7 +196,7 @@ module io
 
         #: (File) -> { err = Error } | { ok = nil }
         func close(self)
-            let err_code = core.close(self.handle)
+            err_code = core.close(self.handle)
             return io._result_from(err_code, nil)
         end
 
@@ -207,17 +207,17 @@ module io
         ## Read a line from file
         #: (File) -> { err = Error } | { ok = string }
         func read_line(self)
-            let result = core.read_line(self.handle)
-            let err_code = result[0]
-            let line = result[1]
+            result = core.read_line(self.handle)
+            err_code = result[0]
+            line = result[1]
             return io._result_from(err_code, line)
         end
 
         ## Write formatted arguments to file, without a newline.
         #: (File), string, ..any -> { err = Error } | { ok = nil }
         func write(self, fmt, ..args)
-            let text = format(fmt, ..args)
-            let err_code = core.write(self.handle, text)
+            text = format(fmt, ..args)
+            err_code = core.write(self.handle, text)
             return io._result_from(err_code)
         end
 
@@ -232,7 +232,7 @@ module io
     ## Convert an IO error code to an Error
     #: int, a -> { err = Error } | { ok = a }
     func _result_from(code, ok)
-        let message =
+        message =
         if code == 0 then
             return { ok = ok }
         elif code == 1
@@ -252,7 +252,7 @@ module io
     ## Read from stdin
     #: void -> string
     func scan_line()
-        let result = stdin.read_line()
+        result = stdin.read_line()
         assert(result.err == nil)
         return result.ok
     end
@@ -299,10 +299,10 @@ end
 ## Math(s)
 module math
     ## PI
-    let PI = 3.141592653589793
+    PI = 3.141592653589793
 
-    let floor = core.floor
-    let random = core.random
+    floor = core.floor
+    random = core.random
 
     ## Generate a random float in the range [min, max)
     #: number, number -> number

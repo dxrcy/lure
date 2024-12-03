@@ -19,27 +19,27 @@
 # not in a table-destructuring way, but like lua.
 
 # Implicit imports for every file/module
-let std = require("@std") # Or "std"
-let print = std.prelude.print
-let println = std.prelude.println
+std = require("@std") # Or "std"
+print = std.prelude.print
+println = std.prelude.println
 # and so forth...
 
 # Import a module
 # Executes module when `require` expression is run
 # This will run any module-level statements
-let lib = require("lib")
-let add = lib.add
+lib = require("lib")
+add = lib.add
 
 println("Hello World")
 
 # All variables and items are scoped by block
 
-let x = 2
+x = 2
 x = x + 3 # Assignment operators are NOT supported
 log(x)
 
-# Re-declaration of variable shadows original
-let x = 4
+# No such thing as 'redeclarations' (except using type comments I suppose)
+x = 4
 
 y = 4   # Throws error as y is not yet declared
         # This might be a bad idea
@@ -58,7 +58,7 @@ if x > 3
 end
 
 # Hopefully this can work
-let y = if x > 3
+y = if x > 3
     then 4
     else 6
 end
@@ -78,9 +78,9 @@ a[0].b
 # a.(b[0]) # INVALID
 a[b[0]]  # do this instead
 
-let s = "abc"
+s = "abc"
 log(s)
-let s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
+s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
 log(s, s2)
 
 # Simple range for-loop
@@ -91,7 +91,7 @@ for i in 0 to len(list) do
     println("%: %\n", i, list[i])
 end
 
-let list = { 4, 5, 6 }
+list = { 4, 5, 6 }
 
 log(len(list))
 
@@ -110,7 +110,7 @@ end
 # ^ `..` is used to ignore a value
 # Alternatively, underscore could be used
 
-let dict = {
+dict = {
     a = 1,
     b = 2,
 }
@@ -125,7 +125,7 @@ for key = .. in dict do
     println("%\n", value) # a, b
 end
 
-let mixed = {
+mixed = {
     4,      # Implicitly `0 = 4`
     a = 5,
     # if `6` was here it would be implicitly `1 = 6`
@@ -142,13 +142,13 @@ for key = .. in mixed do
     println("%\n", key) # 0, a
 end
 
-let a = 0
+a = 0
 while a < 10 do
     log(a)
     a = a + 1
 end
 
-let a = 0
+a = 0
 while a do
     log(a)
     a = a + 1
@@ -164,7 +164,7 @@ log(lib.PI)
 
 # Maybe change keyword `from` for templates ?
 # Value immediately drops knowledge of template when constructed
-let john = from lib.Person {
+john = from lib.Person {
     name = "John",
     age = 30,
 }
@@ -190,7 +190,7 @@ assert(type_of(lib), "never")
 
 # Indexing and slicing
 # Works the same for strings and lists
-let a = "abcdef"
+a = "abcdef"
 assert(a[0], "a")
 assert(a[-1], "f")
 assert(a[1, 2], "ab")
@@ -206,7 +206,7 @@ a[0] = "A"
 a.set(0, "A")
 a[0, 1] = "AB" # Parsing error: Not an LValue
 # Panic if type is not table or string
-let n = 123
+n = 123
 n[0]
 n[0, 3]
 n[0] = 5
@@ -214,7 +214,7 @@ n.get(0)
 n.slice(0, 3)
 n.set(0, 5)
 # Named table access
-let b = { a = 1, b = 2 }
+b = { a = 1, b = 2 }
 assert(b.a, 1)
 assert(b.b, 2)
 assert(b["a"], 1)
@@ -222,10 +222,10 @@ assert(b[0], nil)
 assert(b[0, 1], nil)
 
 # Spread operator
-let jane = { name = "Jane", ..john }
+jane = { name = "Jane", ..john }
 
 # Match/switch statements are not supported
-let x = 3
+x = 3
 # As a statement
 if x == 4 then
     println("4")
@@ -251,7 +251,7 @@ if john == john then
 end
 
 # Same as dict==dict comparison above
-let a = { 2, 3, 4 }
+a = { 2, 3, 4 }
 if a == a then
 end
 

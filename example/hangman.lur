@@ -5,9 +5,9 @@ func main(args)
         println("Please provide a file path.")
         return 1
     end
-    let filename = args[1]
+    filename = args[1]
 
-    let words = read_file_lines(filename)
+    words = read_file_lines(filename)
     if words == nil then
         println("Failed to read file.")
         return 2
@@ -16,19 +16,19 @@ func main(args)
     println("\n\n\n\n\n")
 
     while true do
-        let index = math.random_int(0, len(words))
-        let word = words[index]
+        index = math.random_int(0, len(words))
+        word = words[index]
 
-        let correct = from Set {}
-        let incorrect = from Set {}
+        correct = from Set {}
+        incorrect = from Set {}
 
         while true do
             for .. in 0 to 5 do
                 print("\x1b[A\x1b[K")
             end
 
-            let visible = ""
-            let is_win = true
+            visible = ""
+            is_win = true
             for ch in word do
                 if correct.contains(ch) then
                     visible = visible : ch
@@ -60,12 +60,12 @@ func main(args)
             println("Inorrect: %", incorrect)
             print("Guess: ")
 
-            let line = io.read_line()
+            line = io.read_line()
             if len(line) < 1 then
                 continue
             end
 
-            let guess = line[0]
+            guess = line[0]
             if word.contains(guess) then
                 correct.add(guess)
             else
@@ -77,15 +77,15 @@ end
 
 #: string -> { string } | nil
 func read_file_lines(filename)
-    let result = File.open(filename, "r")
-    let file = result.ok
+    result = File.open(filename, "r")
+    file = result.ok
     if result.err != nil then
         return nil
     end
 
-    let lines = {}
+    lines = {}
     while true do
-        let err, line = file.read_line()
+        err, line = file.read_line()
         if err != nil then
             return nil
         end
@@ -117,7 +117,7 @@ template Set = {
 
     #: (Set) -> string
     func @to_string(self)
-        let output = ""
+        output = ""
         for item in self.items do
             if len(output) > 0 then
                 output = output : ", "
