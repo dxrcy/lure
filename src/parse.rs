@@ -1003,51 +1003,58 @@ impl TokenIter {
                 }
 
                 Token::Keyword(Keyword::Func) => {
+                    let index = self.get_index();
                     self.next();
-                    let func = self.expect_func_statement()?;
-                    table.entries.push(TableEntry::Func(func));
-                }
-
-                _ => {
-                    let entry: TableEntry = 'entry: {
-                        let index = self.get_index();
-
-                        // Both of these can fail to match, if the following token is not `=`
-                        // Leave this as a `match` statement for readability
-                        match self.peek() {
-                            Token::Ident(_) => {
-                                // Consumes `=` and value expression
-                                if let Some(assign) = self.try_assign_statement() {
-                                    let assign = assign?;
-                                    let key = assign.name;
-                                    let value = Box::new(assign.value);
-                                    break 'entry TableEntry::Chain { key, value };
-                                }
-                            }
-
-                            Token::Literal(literal) => {
-                                let key = literal.to_owned();
-                                self.next();
-                                if self.next() == &Token::Keyword(Keyword::SingleEqual) {
-                                    let value = Box::new(self.expect_expr()?);
-                                    break 'entry TableEntry::Literal { key, value };
-                                }
-                            }
-
-                            _ => (),
-                        }
-
-                        // Fallback to positional expression
+                    // Handle function expression (with implicit key)
+                    if self.peek() == &Token::Keyword(Keyword::ParenLeft) {
                         self.set_index(index);
-                        let key = Literal::Number(implicit_key as Number);
-                        implicit_key += 1;
-                        let value = Box::new(self.expect_expr()?);
-                        TableEntry::Literal { key, value }
-                    };
-
-                    table.entries.push(entry);
+                    } else {
+                        let func = self.expect_func_statement()?;
+                        table.entries.push(TableEntry::Func(func));
+                        continue;
+                    }
                 }
+
+                _ => (),
             }
+
+            let entry: TableEntry = 'entry: {
+                let index = self.get_index();
+
+                // Both of these can fail to match, if the following token is not `=`
+                // Leave this as a `match` statement for readability
+                match self.peek() {
+                    Token::Ident(_) => {
+                        // Consumes `=` and value expression
+                        if let Some(assign) = self.try_assign_statement() {
+                            let assign = assign?;
+                            let key = assign.name;
+                            let value = Box::new(assign.value);
+                            break 'entry TableEntry::Chain { key, value };
+                        }
+                    }
+
+                    Token::Literal(literal) => {
+                        let key = literal.to_owned();
+                        self.next();
+                        if self.next() == &Token::Keyword(Keyword::SingleEqual) {
+                            let value = Box::new(self.expect_expr()?);
+                            break 'entry TableEntry::Literal { key, value };
+                        }
+                    }
+
+                    _ => (),
+                }
+
+                // Fallback to positional expression
+                self.set_index(index);
+                let key = Literal::Number(implicit_key as Number);
+                implicit_key += 1;
+                let value = Box::new(self.expect_expr()?);
+                TableEntry::Literal { key, value }
+            };
+
+            table.entries.push(entry);
         }
 
         Ok(table)

@@ -1,7 +1,16 @@
 func main()
-    print("FOO")
-    let a = 123
-    print("a:", a)
-    a = 456
-    print("a:", a)
+    # print("FOO")
+    # let a = 123
+    # print("a:", a)
+    # a = 456
+    # print("a:", a)
+
+    let a = {
+        2
+        3
+        4
+
+        func()
+        end
+    }
 end
