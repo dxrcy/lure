@@ -7,7 +7,7 @@ fn main() {
     let file = fs::read_to_string(filename).expect("Failed to read file");
 
     let tokens = lure::lex_tokens(&file).expect("Failed to lex");
-    let body = lure::parse_module_body(tokens).expect("Failed to parse");
+    let body = lure::parse_file_module(tokens).expect("Failed to parse");
     println!("Successfully parsed.");
 
     println!("{:#?}", body);

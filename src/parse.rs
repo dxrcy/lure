@@ -276,15 +276,15 @@ impl Ord for BinaryOp {
     }
 }
 
-pub fn parse_module_body(tokens: Vec<TokenRef>) -> Result<StatementBody, ParseError> {
+pub fn parse_file_module(tokens: Vec<TokenRef>) -> Result<TableExpr, ParseError> {
     let mut tokens = TokenIter::from(tokens);
 
-    let body = tokens.expect_body()?;
+    let table = tokens.expect_file_contents()?;
 
     // Does this need to be here ?
     tokens.expect_eof()?;
 
-    Ok(body)
+    Ok(table)
 }
 
 impl TokenIter {
@@ -310,6 +310,10 @@ impl TokenIter {
     fn expect_keyword_end(&mut self) -> Result<(), ParseError> {
         self.expect_keyword(Keyword::End, "Code block must be closed with `end` keyword")?;
         Ok(())
+    }
+
+    fn expect_file_contents(&mut self) -> Result<TableExpr, ParseError> {
+        self.expect_table(true)
     }
 
     fn expect_body(&mut self) -> Result<StatementBody, ParseError> {
@@ -964,11 +968,21 @@ impl TokenIter {
     }
 
     fn expect_table_expr(&mut self) -> Result<TableExpr, ParseError> {
+        self.expect_table(false)
+    }
+
+    fn expect_table(&mut self, is_file: bool) -> Result<TableExpr, ParseError> {
         let mut table = TableExpr::default();
         let mut implicit_key = 0;
 
+        let delim_token = if is_file {
+            Token::Eof
+        } else {
+            Token::Keyword(Keyword::BraceRight)
+        };
+
         // Empty table
-        if self.peek() == &Token::Keyword(Keyword::BraceRight) {
+        if self.peek() == &delim_token {
             self.next();
             return Ok(table);
         }
@@ -980,7 +994,7 @@ impl TokenIter {
                         self.line(),
                         Keyword::Comma,
                         [
-                            Keyword::BraceRight,
+                            delim_token,
                             "literal or identifier with `=`",
                             "expression",
                             "function",
@@ -989,7 +1003,7 @@ impl TokenIter {
                     ));
                 }
 
-                Token::Keyword(Keyword::BraceRight) => {
+                token if token == &delim_token => {
                     self.next();
                     break;
                 }
@@ -999,7 +1013,11 @@ impl TokenIter {
                     let origin = self.expect_ident()?;
                     let value = self.expect_accessible_chain(origin)?;
                     table.base_table = Some(value);
-                    self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
+                    if is_file {
+                        self.expect_eof()?; // TODO: "Spread key must be last key"
+                    } else {
+                        self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
+                    }
                     break;
                 }
 
