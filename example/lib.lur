@@ -48,39 +48,28 @@ func map(table, fun)
     return table
 end
 
-# Templates
+# Metatables TODO: Choose a better name
 #
-# Similar to metatables (I think)
-# No inheritance or anything.
+# Similar to Lua metatables (I think)
 #
-# Note the `{...}` syntax used for the body, to mirror the table creation
-#
-# A table can function the exact same without defining using a template, but
-# doing so allows better ""type safety"" and ideally more readable code.
-# Default fields and methods will be automatically included in the table.
+# Metatables should just PascalCase
 
 ## A person
-template Person = {
-    # Required fields. If a table is defined with the template, and these
-    # values are not supplied, the interpreter will throw an error (or at least
-    # a warning)
-
+Person = {
+    # Default values are required for all fields
     #: string
-    name
+    name = ""
     #: int
-    age
-
-    # Default value given
+    age = 0
     #: bool
     is_alive = true
 
     # Methods
 
-    # `self` is a keyword probably. This is not unique to templates.
-    # Not sure what the type-comment syntax should be for `self`
+    # `self` is not a keyword, it is just a normal parameter.
 
     ## Get the name
-    #: (Person) -> string
+    #: Person -> string
     func get_name(self)
         return self.name
     end
@@ -94,29 +83,62 @@ template Person = {
     # `@to_string` method is not defined anywhere. Though doc comments probably
     # are not necessary here.
 
-    #: (Person) -> string
+    #: Person -> string
     func @to_string(self)
         return std.format("% is % years old", self.name, self.age)
     end
 }
 
-template Vector = {
+# Metatables are just tables
+# Other tables can 'inherit' values (including methods)
+
+Vector = {
     #: int
     x = 0
     #: int
     y = 0
 
-    #: (Vector), Vector -> Vector
+    #: int, int -> Vector
+    func new(x, y)
+        return Vector: {
+            x = x
+            y = y
+        }
+    end
+
+    #: Vector, Vector -> int
+    func dot(self, other)
+        return self.x * other.x + self.y * other.y
+    end
+
+    #: Vector, Vector -> Vector
     func @add(self, other)
-        return from Vector {
+        # This syntax is similar to Lua's `setmetatable` function
+        return Vector: {
             x = self.x + other.x
             y = self.y + other.y
         }
     end
 
-    #: (Vector) -> string
+    #: Vector -> string
     func @to_string(self)
         return std.format("(%, %)", self.x, self.y)
     end
 }
+
+func vector_example()
+    # Using helper method
+    a = Vector.new(3, 4)
+    # Manually setting metatable
+    b = Vector: { 5 6 }
+
+    print(a + b) # (8, 10)
+
+    # Use `:` to pass the object as the `self` parameter
+    a:dot(b)
+    # ^ This is equivalent to:
+    a.add(a, b)
+    # (alternatively)
+    Vector.add(a, b)
+end
 

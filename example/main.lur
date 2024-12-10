@@ -10,8 +10,6 @@
     A module contains statements
     A statement can be:
     - function
-    - template
-    - another module
     - variable declaration
     - assignment operation
     - loop / conditional
@@ -116,6 +114,7 @@ func main()
     end
     # ^ `..` is used to ignore a value
     # Alternatively, underscore could be used
+    # `.. = value` is invalid. Use simply `value`
 
     dict = {
         a = 1
@@ -169,9 +168,7 @@ func main()
 
     log(lib.PI)
 
-    # Maybe change keyword `from` for templates ?
-    # Value immediately drops knowledge of template when constructed
-    john = from lib.Person {
+    john = lib.Person: {
         name = "John"
         age = 30
     }
@@ -185,15 +182,10 @@ func main()
     assert(type_of(list),  "table")
     assert(type_of(dict),  "table")
     assert(type_of(mixed), "table")
-    assert(type_of(john),  "table") # template "person" is no longer relevant
-
-    # A template is used as a value. Not allowed.
-    # Interpreter will throw an error when checking if variables are declared
-    assert(type_of(lib.Person), "never")
-
-    # This also *might* throw an error?
-    # Unless modules are converted to tables
-    assert(type_of(lib), "never")
+    assert(type_of(john),  "table")
+    # Metatables and modules are tables
+    assert(type_of(lib.Person), "table")
+    assert(type_of(lib), "table")
 
     # Indexing and slicing
     # Works the same for strings and lists
@@ -229,9 +221,17 @@ func main()
     assert(b[0, 1], nil)
 
     # Spread operator
-    jane = { name = "Jane", ..john }
+    jane = { name = "Jane" ..john }
+    # ^Equivalent to this:
+    jane = { name = "Jane" }
+    for key, value in john do
+        if jane[key] == nil then
+            jane[key] = value
+        end
+    end
 
     # Match/switch statements are not supported
+
     x = 3
     # As a statement
     if x == 4 then
@@ -252,8 +252,9 @@ func main()
         println("Who are you")
     end
 
-    # Checks each key/value RECURSIVELY!
+    # Default implementation of `@eq` checks each key/value RECURSIVELY!
     # Works, but probably not what u want
+    # This can be 'overridden' by the table/metatable
     if john == john then
     end
 

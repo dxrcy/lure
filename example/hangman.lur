@@ -19,8 +19,8 @@ func main(args)
         index = math.random_int(0, len(words))
         word = words[index]
 
-        correct = from Set {}
-        incorrect = from Set {}
+        correct = Set: {}
+        incorrect = Set: {}
 
         while true do
             for .. in 0 to 5 do
@@ -99,23 +99,23 @@ func read_file_lines(filename)
     return lines
 end
 
-template Set = {
+Set = {
     #: { char = bool }
-    items = {},
+    items = {}
 
-    #: (Set), char -> void
+    #: Set, char -> void
     func add(self, item)
         if not self.contains(item) then
             self.items[item] = true
         end
     end
 
-    #: (Set), char -> bool
+    #: Set, char -> bool
     func contains(self, item)
         return self.items[item] == true
     end
 
-    #: (Set) -> string
+    #: Set -> string
     func @to_string(self)
         output = ""
         for item in self.items do
