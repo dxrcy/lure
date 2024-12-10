@@ -1,5 +1,7 @@
-print("FOO")
-let a = 123
-print("a:", a)
-a = 456
-print("a:", a)
+func main()
+    print("FOO")
+    let a = 123
+    print("a:", a)
+    a = 456
+    print("a:", a)
+end

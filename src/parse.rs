@@ -9,7 +9,6 @@ pub type StatementBody = Vec<Statement>;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Template(Template),
     Func(FuncStatement),
     Assign(AssignStatement),
     If(IfStatement),
@@ -24,31 +23,8 @@ pub enum Statement {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Template {
-    pub name: Ident,
-    pub entries: Vec<TemplateEntry>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum TemplateEntry {
-    Key {
-        key: Ident,
-        default_value: Option<Expr>,
-    },
-    Func(FuncTableEntry),
-}
-
-#[derive(Debug, PartialEq)]
 pub struct FuncStatement {
     pub name: Ident,
-    pub params: FuncParams,
-    pub body: StatementBody,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct FuncTableEntry {
-    pub name: Ident,
-    pub self_param: bool,
     pub params: FuncParams,
     pub body: StatementBody,
 }
@@ -63,18 +39,12 @@ pub type Ident = String;
 
 #[derive(Debug, PartialEq)]
 pub struct Chain<T> {
-    pub origin: ChainOrigin,
+    pub origin: Ident,
     pub chain: Vec<T>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ChainOrigin {
-    Self_,
-    Name(Ident),
-}
-
 impl<T> Chain<T> {
-    pub fn from(origin: ChainOrigin, chain: Vec<T>) -> Self {
+    pub fn from(origin: Ident, chain: Vec<T>) -> Self {
         Self { origin, chain }
     }
 }
@@ -227,7 +197,7 @@ pub enum TableEntry {
         key: AssignableChain,
         value: Box<Expr>,
     },
-    Func(FuncTableEntry),
+    Func(FuncStatement),
 }
 
 /// >=1 items
@@ -369,10 +339,6 @@ impl TokenIter {
                     self.next();
                     Statement::While(self.expect_while_statement()?)
                 }
-                Token::Keyword(Keyword::Template) => {
-                    self.next();
-                    Statement::Template(self.expect_template()?)
-                }
 
                 Token::Keyword(Keyword::Break) => {
                     self.next();
@@ -452,72 +418,6 @@ impl TokenIter {
         Ok(ReturnStatement { values })
     }
 
-    fn expect_template(&mut self) -> Result<Template, ParseError> {
-        let name = self.expect_ident()?;
-
-        self.expect_keyword(
-            Keyword::SingleEqual,
-            "`template` statement must include `=`",
-        )?;
-        self.expect_keyword(Keyword::BraceLeft, "`template` statement must include `{`")?;
-
-        let mut entries = Vec::new();
-        loop {
-            match self.next() {
-                Token::Keyword(Keyword::BraceRight) => {
-                    break;
-                }
-
-                Token::Keyword(Keyword::Func) => {
-                    let func = self.expect_func_table_entry()?;
-                    entries.push(TemplateEntry::Func(func));
-                }
-
-                Token::Ident(ident) => {
-                    let name = ident.to_owned();
-                    let default_value = match self.next() {
-                        Token::Keyword(Keyword::Comma) => {
-                            None
-                        }
-
-                        Token::Keyword(Keyword::SingleEqual) => {
-                            let value = self.expect_expr()?;
-                            self.expect_keyword(
-                                Keyword::Comma,
-                                "Template key with default value must be followed with `,`",
-                            )?;
-                            Some(value)
-                        }
-
-                        token => {
-                            return Err(unexpected!(
-                                self.line(),
-                                token.to_owned(),
-                                [Keyword::Comma, Keyword::SingleEqual],
-                                "Template key must be followed with `,` or `=` to declare a default value"
-                            ))
-                        }
-                    };
-                    entries.push(TemplateEntry::Key {
-                        key: name,
-                        default_value,
-                    });
-                }
-
-                token => {
-                    return Err(unexpected!(
-                        self.line(),
-                        token.to_owned(),
-                        ["template entry name", Keyword::Func, Keyword::BraceRight],
-                        "Templates can only contain keys and functions",
-                    ))
-                }
-            }
-        }
-
-        Ok(Template { name, entries })
-    }
-
     fn expect_func_statement(&mut self) -> Result<FuncStatement, ParseError> {
         let name = self.expect_ident()?;
 
@@ -533,50 +433,6 @@ impl TokenIter {
         self.expect_keyword_end()?;
 
         Ok(FuncStatement { name, params, body })
-    }
-
-    fn expect_func_table_entry(&mut self) -> Result<FuncTableEntry, ParseError> {
-        let name = self.expect_ident()?;
-
-        self.expect_keyword(
-            Keyword::ParenLeft,
-            "`func` statement must include parameter list between parentheses",
-        )?;
-
-        let self_param = match self.peek() {
-            Token::Keyword(Keyword::Self_) => {
-                self.next();
-                match self.peek() {
-                    Token::Keyword(Keyword::ParenRight) => (),
-                    Token::Keyword(Keyword::Comma) => {
-                        self.next();
-                    }
-                    token => {
-                        return Err(unexpected!(
-                            self.line(),
-                            token.to_owned(),
-                            [Keyword::Comma, Keyword::ParenRight],
-                            "Parameters must be separated with commas",
-                        ))
-                    }
-                }
-                true
-            }
-            _ => false,
-        };
-
-        let params = self.expect_params()?;
-
-        let body = self.expect_body()?;
-
-        self.expect_keyword_end()?;
-
-        Ok(FuncTableEntry {
-            name,
-            self_param,
-            params,
-            body,
-        })
     }
 
     fn expect_func_expr(&mut self) -> Result<FuncExpr, ParseError> {
@@ -650,16 +506,11 @@ impl TokenIter {
                 }
 
                 token => {
-                    let reason = match token {
-                        Token::Keyword(Keyword::Self_) =>
-                            "`self` paramter can only be used as the first parameter of a function table entry",
-                        _ => "Parameter list must end with `)`",
-                    };
                     return Err(unexpected!(
                         self.line(),
                         token.to_owned(),
                         ["parameter name", Keyword::ParenRight],
-                        reason,
+                        "Parameter list must end with `)`",
                     ));
                 }
             }
@@ -938,13 +789,8 @@ impl TokenIter {
                 return Ok(Expr::Literal(literal.to_owned()));
             }
 
-            Token::Keyword(Keyword::Self_) => {
-                let origin = ChainOrigin::Self_;
-                let value = self.expect_accessible_chain(origin)?;
-                return Ok(Expr::Chain(Box::new(value)));
-            }
             Token::Ident(ident) => {
-                let origin = ChainOrigin::Name(ident.to_owned());
+                let origin = ident.to_owned();
                 let value = self.expect_accessible_chain(origin)?;
                 return Ok(Expr::Chain(Box::new(value)));
             }
@@ -970,20 +816,19 @@ impl TokenIter {
                 });
             }
 
-            Token::Keyword(Keyword::From) => {
-                let origin = self.expect_chain_origin()?;
-                let name = self.expect_assignable_chain(origin)?;
-                self.expect_keyword(
-                    Keyword::BraceLeft,
-                    "Template name must be followed by table",
-                )?;
-                let table = self.expect_table_expr()?;
-                return Ok(Expr::Table {
-                    table,
-                    template: Some(name),
-                });
-            }
-
+            // Token::Keyword(Keyword::From) => {
+            //     let origin = self.expect_chain_origin()?;
+            //     let name = self.expect_assignable_chain(origin)?;
+            //     self.expect_keyword(
+            //         Keyword::BraceLeft,
+            //         "Template name must be followed by table",
+            //     )?;
+            //     let table = self.expect_table_expr()?;
+            //     return Ok(Expr::Table {
+            //         table,
+            //         template: Some(name),
+            //     });
+            // }
             Token::Keyword(Keyword::If) => {
                 return Ok(Expr::If(self.expect_if_expr()?));
             }
@@ -999,7 +844,6 @@ impl TokenIter {
                     Token::Keyword(Keyword::While) => {
                         "Cannot use `while` statement as an expression"
                     }
-                    Token::Keyword(Keyword::Template) => "Cannot use template as an expression",
                     // Generic reason
                     _ => "Cannot parse the tokens as an expression",
                 };
@@ -1008,10 +852,7 @@ impl TokenIter {
         }
     }
 
-    fn expect_accessible_chain(
-        &mut self,
-        origin: ChainOrigin,
-    ) -> Result<AccessibleChain, ParseError> {
+    fn expect_accessible_chain(&mut self, origin: Ident) -> Result<AccessibleChain, ParseError> {
         //TODO: Save index
         // ^ ????? Why?
 
@@ -1121,18 +962,6 @@ impl TokenIter {
         return Ok(AccessibleChain::from(origin, rest));
     }
 
-    fn expect_chain_origin(&mut self) -> Result<ChainOrigin, ParseError> {
-        match self.next() {
-            Token::Keyword(Keyword::Self_) => Ok(ChainOrigin::Self_),
-            Token::Ident(ident) => Ok(ChainOrigin::Name(ident.to_owned())),
-            token => Err(unexpected!(
-                self.line(),
-                token.to_owned(),
-                ["ident", Keyword::Self_]
-            )),
-        }
-    }
-
     fn expect_table_expr(&mut self) -> Result<TableExpr, ParseError> {
         let mut table = TableExpr::default();
         let mut implicit_key = 0;
@@ -1147,7 +976,7 @@ impl TokenIter {
             match self.peek() {
                 Token::Keyword(Keyword::Spread) => {
                     self.next();
-                    let origin = self.expect_chain_origin()?;
+                    let origin = self.expect_ident()?;
                     let value = self.expect_accessible_chain(origin)?;
                     table.base_table = Some(value);
                     self.expect_keyword(Keyword::BraceRight, "Spread key must be last key")?;
@@ -1156,7 +985,7 @@ impl TokenIter {
 
                 Token::Keyword(Keyword::Func) => {
                     self.next();
-                    let func = self.expect_func_table_entry()?;
+                    let func = self.expect_func_statement()?;
                     table.entries.push(TableEntry::Func(func));
 
                     match self.peek() {
@@ -1243,10 +1072,7 @@ impl TokenIter {
         Ok(table)
     }
 
-    fn expect_assignable_chain(
-        &mut self,
-        origin: ChainOrigin,
-    ) -> Result<AssignableChain, ParseError> {
+    fn expect_assignable_chain(&mut self, origin: Ident) -> Result<AssignableChain, ParseError> {
         let mut parts = Vec::new();
 
         loop {
@@ -1301,7 +1127,7 @@ impl TokenIter {
         // We don't yet know if it is an assignment statement or not
         let index = self.get_index();
 
-        let Ok(origin) = self.expect_chain_origin() else {
+        let Ok(origin) = self.expect_ident() else {
             self.set_index(index);
             return None;
         };

@@ -1,7 +1,8 @@
 #![allow(clippy::needless_return)]
 
-#[macro_use]
-mod debug;
+// #[macro_use]
+// mod debug;
+
 mod error;
 // mod interpret;
 mod lex;

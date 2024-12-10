@@ -66,7 +66,6 @@ macro_rules! make_keyword {
 
 // Does not include `nil`, `true`, `false`
 make_keyword! {
-    "template" => Template,
     "func" => Func,
     "end" => End,
     "if" => If,
@@ -82,8 +81,6 @@ make_keyword! {
     "return" => Return,
     "break" => Break,
     "continue" => Continue,
-    "from" => From,
-    "self" => Self_,
     "and" => And,
     "or" => Or,
     "not" => Not,

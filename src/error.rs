@@ -2,6 +2,7 @@ use std::fmt::{self, Display};
 
 use crate::lex::Token;
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum InterpretError {
     Parse(ParseError),
