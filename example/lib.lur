@@ -10,9 +10,9 @@ func add(a, b)
 end
 
 table = {
-    key = "value",
+    key = "value"
     # Maybe this will be supported ??
-    nested.key = "value",
+    nested.key = "value"
 }
 
 PI = std.math.PI
@@ -66,13 +66,13 @@ template Person = {
     # a warning)
 
     #: string
-    name,
+    name
     #: int
-    age,
+    age
 
     # Default value given
     #: bool
-    is_alive = true,
+    is_alive = true
 
     # Methods
 
@@ -102,15 +102,15 @@ template Person = {
 
 template Vector = {
     #: int
-    x = 0,
+    x = 0
     #: int
-    y = 0,
+    y = 0
 
     #: (Vector), Vector -> Vector
     func @add(self, other)
         return from Vector {
-            x = self.x + other.x,
-            y = self.y + other.y,
+            x = self.x + other.x
+            y = self.y + other.y
         }
     end
 

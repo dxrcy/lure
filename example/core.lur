@@ -145,20 +145,20 @@ end
 #: a, a -> int
 func compare(arg, other)
     # Something like:
-    match { type_of(arg), type_of(other) }
-        case { "nil", "nil" }       then return 0
-        case { "bool", "bool" }     then todo()
-        case { "number", "number" } then todo() # Near-enough floats should return 0
-        case { "char", "char" }     then todo()
-        case { "string", "string" } then todo()
-        case { "char", "string" }   then todo() 
-        case { "string", "char" }   then todo() 
-        case { "table", "table" } then
+    match { type_of(arg) type_of(other) }
+        case { "nil" "nil" }       then return 0
+        case { "bool" "bool" }     then todo()
+        case { "number" "number" } then todo() # Near-enough floats should return 0
+        case { "char" "char" }     then todo()
+        case { "string" "string" } then todo()
+        case { "char" "string" }   then todo() 
+        case { "string" "char" }   then todo() 
+        case { "table" "table" } then
             if arg.@compare != nil
                 then return arg.@compare(other)
                 else todo() # 0 if same reference ?
             end
-        case { "func", "func" } then
+        case { "func" "func" } then
             todo() # 0 if same pointer ? Or always non-zero ?
         else return false # Mismatched types
     end

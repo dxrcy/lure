@@ -158,29 +158,29 @@ sys = {
 io = {
     ## Standard out
     #: File
-    stdin  = from File { path = "/dev/stdin", handle = core.stdin }
+    stdin  = from File { path = "/dev/stdin" handle = core.stdin }
     ## Standard in
     #: File
-    stdout = from File { path = "/dev/stdout", handle = core.stdout }
+    stdout = from File { path = "/dev/stdout" handle = core.stdout }
     ## Standard error
     #: File
     # TODO: Specify unbuffered
-    stderr = from File { path = "/dev/stderr", handle = core.stderr }
+    stderr = from File { path = "/dev/stderr" handle = core.stderr }
 
     ## I/O error
     template Error = {
         #: int
-        code,
+        code
         #: string
-        message,
+        message
     }
 
     ## Open file
     template File = {
         #: string
-        path,
+        path
         #: int
-        handle,
+        handle
         # put a buffer or something here ideally...
 
         #: string, string -> { err = Error } | { ok = File }
@@ -189,8 +189,8 @@ io = {
             err_code = result[0]
             handle = result[1]
             return io._result_from(err_code, from File {
-                path = filename,
-                handle = handle,
+                path = filename
+                handle = handle
             })
         end
 
@@ -243,8 +243,8 @@ io = {
         end
         return {
             err = from Error {
-                code = code,
-                message = message,
+                code = code
+                message = message
             }
         }
     end

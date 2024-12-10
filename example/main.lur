@@ -1,5 +1,10 @@
 #!/bin/lure
 
+# A file is a table and a module
+# Only assignments can occur
+# Procedural logic must happen in functions
+# `main` will get called automatically, for the entrypoint file
+
 #[[ This is a block comment
     A file is a module
     A module contains statements
@@ -30,229 +35,231 @@ println = std.prelude.println
 lib = require("lib")
 add = lib.add
 
-println("Hello World")
+func main()
+    println("Hello World")
 
-# All variables and items are scoped by block
+    # All variables and items are scoped by block
 
-x = 2
-x = x + 3 # Assignment operators are NOT supported
-log(x)
+    x = 2
+    x = x + 3 # Assignment operators are NOT supported
+    log(x)
 
-# No such thing as 'redeclarations' (except using type comments I suppose)
-x = 4
+    # No such thing as 'redeclarations' (except using type comments I suppose)
+    x = 4
 
-y = 4   # Throws error as y is not yet declared
-        # This might be a bad idea
+    y = 4  # Throws error as y is not yet declared
+            # This might be a bad idea
 
-if x > 3 then
-    println("> 3")
-elif x == 2 then
-    println("== 2")
-else
-    println("<= 3")
-end
-# (Alternative formatting)
-if x > 3
-    then println("> 3")
-    else println("<= 3")
-end
+    if x > 3 then
+        println("> 3")
+    elif x == 2 then
+        println("== 2")
+    else
+        println("<= 3")
+    end
+    # (Alternative formatting)
+    if x > 3
+        then println("> 3")
+        else println("<= 3")
+    end
 
-# Hopefully this can work
-y = if x > 3
-    then 4
-    else 6
-end
+    # Hopefully this can work
+    y = if x > 3
+        then 4
+        else 6
+    end
 
-# LValues
-a
-a.b.c
-a[0]
-a.b[0]
-a[0].b
-# TODO: Support these lvalue syntaxes
-# (a).b
-# (a.b).c
-# (a)[0]
-# (a[0]).b
-# (a.b)[0]
-# a.(b[0]) # INVALID
-a[b[0]]  # do this instead
+    # LValues
+    a
+    a.b.c
+    a[0]
+    a.b[0]
+    a[0].b
+    # TODO: Support these lvalue syntaxes
+    # (a).b
+    # (a.b).c
+    # (a)[0]
+    # (a[0]).b
+    # (a.b)[0]
+    # a.(b[0]) # INVALID
+    a[b[0]]  # do this instead
 
-s = "abc"
-log(s)
-s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
-log(s, s2)
+    s = "abc"
+    log(s)
+    s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
+    log(s, s2)
 
-# Simple range for-loop
-for i in 0 to 10 do # Always inclusive to exclusive
-    log(i) # 0, 1, ... 9
-end
-for i in 0 to len(list) do
-    println("%: %\n", i, list[i])
-end
+    # Simple range for-loop
+    for i in 0 to 10 do # Always inclusive to exclusive
+        log(i) # 0, 1, ... 9
+    end
+    for i in 0 to len(list) do
+        println("%: %\n", i, list[i])
+    end
 
-list = { 4, 5, 6 }
+    # Tables NEVER use commas in between values
+    list = { 4 5 6 }
 
-log(len(list))
+    log(len(list))
 
-# Maybe use different syntax for key/value binding
-# Shouldn't use `i: value` unfortunately. Not consistent with dict literals
-# Maybe `i, item`
-for value in list do
-    println("%\n", value) # 4, 5, 6
-end
-for i = value in list do
-    println("%: %\n", i, value) # 0: 4, 1: 5, 2: 6
-end
-for i = .. in list do
-    println("%\n", i) # 0, 1, 2
-end
-# ^ `..` is used to ignore a value
-# Alternatively, underscore could be used
+    # Maybe use different syntax for key/value binding
+    # Shouldn't use `i: value` unfortunately. Not consistent with dict literals
+    # Maybe `i, item`
+    for value in list do
+        println("%\n", value) # 4, 5, 6
+    end
+    for i = value in list do
+        println("%: %\n", i, value) # 0: 4, 1: 5, 2: 6
+    end
+    for i = .. in list do
+        println("%\n", i) # 0, 1, 2
+    end
+    # ^ `..` is used to ignore a value
+    # Alternatively, underscore could be used
 
-dict = {
-    a = 1,
-    b = 2,
-}
+    dict = {
+        a = 1
+        b = 2
+    }
 
-for value in dict do
-    println("%\n", value) # 1, 2
-end
-for key = value in dict do
-    println("%: %\n", key, value) # a: 1, b: 2
-end
-for key = .. in dict do
-    println("%\n", value) # a, b
-end
+    for value in dict do
+        println("%\n", value) # 1, 2
+    end
+    for key = value in dict do
+        println("%: %\n", key, value) # a: 1, b: 2
+    end
+    for key = .. in dict do
+        println("%\n", value) # a, b
+    end
 
-mixed = {
-    4,      # Implicitly `0 = 4`
-    a = 5,
-    # if `6` was here it would be implicitly `1 = 6`
-    # (1 is the lowest non-negative number not already used as a key)
-}
+    mixed = {
+        4       # Implicitly `0 = 4`
+        a = 5
+        # if `6` was here it would be implicitly `1 = 6`
+        # (1 is the lowest non-negative number not already used as a key)
+    }
 
-for value in mixed do
-    println("%\n", value) # 4, 5
-end
-for key = value in mixed do
-    println("%: %\n", key, value) # 0: 4, a: 5
-end
-for key = .. in mixed do
-    println("%\n", key) # 0, a
-end
+    for value in mixed do
+        println("%\n", value) # 4, 5
+    end
+    for key = value in mixed do
+        println("%: %\n", key, value) # 0: 4, a: 5
+    end
+    for key = .. in mixed do
+        println("%\n", key) # 0, a
+    end
 
-a = 0
-while a < 10 do
-    log(a)
-    a = a + 1
-end
+    a = 0
+    while a < 10 do
+        log(a)
+        a = a + 1
+    end
 
-a = 0
-while a do
-    log(a)
-    a = a + 1
-    if a > 10 then
-        break
+    a = 0
+    while a do
+        log(a)
+        a = a + 1
+        if a > 10 then
+            break
+        end
+    end
+
+    log(add(5, 6))
+    log(lib.add(5, 6))
+
+    log(lib.PI)
+
+    # Maybe change keyword `from` for templates ?
+    # Value immediately drops knowledge of template when constructed
+    john = from lib.Person {
+        name = "John"
+        age = 30
+    }
+
+    assert(type_of(nil),   "nil")
+    assert(type_of(true),  "bool")
+    assert(type_of(4),     "number")
+    assert(type_of(4.5),   "number")
+    assert(type_of('f'),   "char")
+    assert(type_of("foo"), "string")
+    assert(type_of(list),  "table")
+    assert(type_of(dict),  "table")
+    assert(type_of(mixed), "table")
+    assert(type_of(john),  "table") # template "person" is no longer relevant
+
+    # A template is used as a value. Not allowed.
+    # Interpreter will throw an error when checking if variables are declared
+    assert(type_of(lib.Person), "never")
+
+    # This also *might* throw an error?
+    # Unless modules are converted to tables
+    assert(type_of(lib), "never")
+
+    # Indexing and slicing
+    # Works the same for strings and lists
+    a = "abcdef"
+    assert(a[0], "a")
+    assert(a[-1], "f")
+    assert(a[1, 2], "ab")
+    assert(a[0, -1], "abcdef")
+    assert(a[1, -1], "bcdef")
+    assert(a[0, -2], "abcde")
+    # Syntax sugar for call to core method implementations
+    assert(a[0], a.get(0, nil))
+    assert(a[-1], a.get(-1, nil))
+    assert(a[1, 2], a.slice(1, 2))
+    assert(a[0, -1], a.slice(0, -1))
+    a[0] = "A"
+    a.set(0, "A")
+    a[0, 1] = "AB" # Parsing error: Not an LValue
+    # Panic if type is not table or string
+    n = 123
+    n[0]
+    n[0, 3]
+    n[0] = 5
+    n.get(0)
+    n.slice(0, 3)
+    n.set(0, 5)
+    # Named table access
+    b = { a = 1, b = 2 }
+    assert(b.a, 1)
+    assert(b.b, 2)
+    assert(b["a"], 1)
+    assert(b[0], nil)
+    assert(b[0, 1], nil)
+
+    # Spread operator
+    jane = { name = "Jane", ..john }
+
+    # Match/switch statements are not supported
+    x = 3
+    # As a statement
+    if x == 4 then
+        println("4")
+    elif x == 5 then
+        println("5")
+        println("it is five")
+    else
+        println("default")
+    end
+
+    # Comparing to a table
+    # Must check each key individually
+    if john.name == "John" then
+        println("Hello John")
+    else
+        # john.name
+        println("Who are you")
+    end
+
+    # Checks each key/value RECURSIVELY!
+    # Works, but probably not what u want
+    if john == john then
+    end
+
+    # Same as dict==dict comparison above
+    a = { 2 3 4 }
+    if a == a then
     end
 end
-
-log(add(5, 6))
-log(lib.add(5, 6))
-
-log(lib.PI)
-
-# Maybe change keyword `from` for templates ?
-# Value immediately drops knowledge of template when constructed
-john = from lib.Person {
-    name = "John",
-    age = 30,
-}
-
-assert(type_of(nil),   "nil")
-assert(type_of(true),  "bool")
-assert(type_of(4),     "number")
-assert(type_of(4.5),   "number")
-assert(type_of('f'),   "char")
-assert(type_of("foo"), "string")
-assert(type_of(list),  "table")
-assert(type_of(dict),  "table")
-assert(type_of(mixed), "table")
-assert(type_of(john),  "table") # template "person" is no longer relevant
-
-# A template is used as a value. Not allowed.
-# Interpreter will throw an error when checking if variables are declared
-assert(type_of(lib.Person), "never")
-
-# This also *might* throw an error?
-# Unless modules are converted to tables
-assert(type_of(lib), "never")
-
-# Indexing and slicing
-# Works the same for strings and lists
-a = "abcdef"
-assert(a[0], "a")
-assert(a[-1], "f")
-assert(a[1, 2], "ab")
-assert(a[0, -1], "abcdef")
-assert(a[1, -1], "bcdef")
-assert(a[0, -2], "abcde")
-# Syntax sugar for call to core method implementations
-assert(a[0], a.get(0, nil))
-assert(a[-1], a.get(-1, nil))
-assert(a[1, 2], a.slice(1, 2))
-assert(a[0, -1], a.slice(0, -1))
-a[0] = "A"
-a.set(0, "A")
-a[0, 1] = "AB" # Parsing error: Not an LValue
-# Panic if type is not table or string
-n = 123
-n[0]
-n[0, 3]
-n[0] = 5
-n.get(0)
-n.slice(0, 3)
-n.set(0, 5)
-# Named table access
-b = { a = 1, b = 2 }
-assert(b.a, 1)
-assert(b.b, 2)
-assert(b["a"], 1)
-assert(b[0], nil)
-assert(b[0, 1], nil)
-
-# Spread operator
-jane = { name = "Jane", ..john }
-
-# Match/switch statements are not supported
-x = 3
-# As a statement
-if x == 4 then
-    println("4")
-elif x == 5 then
-    println("5")
-    println("it is five")
-else
-    println("default")
-end
-
-# Comparing to a table
-# Must check each key individually
-if john.name == "John" then
-    println("Hello John")
-else
-    # john.name
-    println("Who are you")
-end
-
-# Checks each key/value RECURSIVELY!
-# Works, but probably not what u want
-if john == john then
-end
-
-# Same as dict==dict comparison above
-a = { 2, 3, 4 }
-if a == a then
-end
-
 
