@@ -5,7 +5,7 @@ func main()
     # a = 456
     # print("a:", a)
 
-    a = Foo: {
+    a = as Foo {
         2
         3
         4

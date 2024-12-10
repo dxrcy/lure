@@ -32,14 +32,8 @@ impl TokenIter {
         self.index
     }
 
-    pub fn set_index(&mut self, index: usize) -> &Token {
-        //TODO: Handle underflow
-        let token = match self.tokens.get(self.index - 1) {
-            Some(token_ref) => &token_ref.token,
-            None => &Token::Eof,
-        };
+    pub fn set_index(&mut self, index: usize) {
         self.index = index;
-        token
     }
 
     //TODO: Remove?
