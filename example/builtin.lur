@@ -1,0 +1,177 @@
+#! -- Provided by runtime --
+#!
+#! These functions will not be written in Lure-like psuedocode, but they will
+#! be exposed to `std`, or possibly any module.
+#!
+#! Only shown here for documentation purposes.
+
+#: int -> never
+func exit(code) end
+
+#: any -> string
+func type_of(arg) end
+
+#: path, int -> { int, int }
+func open(path, mode) end
+
+#: int -> int
+func close(file_handle) end
+
+#: int, string -> int
+func write(file_handle, text) end
+
+#: int -> { int, string }
+func read(file_handle, length) end
+
+# Make sure it doesn't contain a trailing `\r` !
+#: int -> { int, string }
+func read_line(file_handle) end
+
+#: { string } -> int
+func system(args) end
+
+# TODO: idk what to do for files...
+
+#: int
+stdout = 0
+#: int
+stdin = 1
+#: int
+stderr = 2
+
+# MATCH STATEMENTS ARE USED <HERE> BECAUSE THIS WILL ALL BE WRITTEN IN RUST
+# ANYWAY!! BUT THEY ARE NOT ACTUALLY VALID IN THIS LANGUAGE!!
+
+#: any -> int
+func len(arg)
+    # Something like:
+    match type_of(arg)
+        case "char"   then return 1
+        case "string" then todo() end
+        case "table" then
+            if arg.@len != nil
+                then return arg.@len()
+                else todo()
+            end
+        case "func" then todo() # Argument count maybe ?
+        else return 0 # Or panic
+    end
+end
+
+#: any -> string
+func to_string(arg)
+    # Something like:
+    match type_of(arg)
+        case "nil"    then return "nil"
+        case "number" then todo()
+        case "char"   then todo()
+        case "string" then return arg
+        case "bool" then
+            if arg 
+                then return "true"
+                else return "false"
+            end
+        case "table" then
+            if arg.@to_string != nil
+                then return arg.@to_string()
+                else todo() # Serialize each item like `{ abc = 123 }`
+            end
+        case "func"
+            then todo() # Something like `<name@line>`
+        else todo()
+    end
+end
+
+#: { k = v }, k -> v
+func get(arg, index)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@get != nil
+                then return arg.@get(index)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+#: { int = v }, int, int -> v
+func slice(arg, start, end)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@slice != nil
+                then return arg.@slice(start, end)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+#: { k = v }, k, v -> void
+func set(arg, index, value)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@set != nil
+                then return arg.@set(index, value)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+#: { int = v }, v -> void
+func push(arg, value)
+    # Something like:
+    match type_of(arg)
+        case "string" then todo()
+        case "table" then
+            if arg.@push != nil
+                then return arg.@push(index, value)
+                else todo()
+            end
+        else panic()
+    end
+end
+
+# Returns:
+#   -1 if arg < other
+#    0 if arg == other
+#   +1 if arg > other
+#: a, a -> int
+func compare(arg, other)
+    # Something like:
+    match { type_of(arg) type_of(other) }
+        case { "nil" "nil" }       then return 0
+        case { "bool" "bool" }     then todo()
+        case { "number" "number" } then todo() # Near-enough floats should return 0
+        case { "char" "char" }     then todo()
+        case { "string" "string" } then todo()
+        case { "char" "string" }   then todo() 
+        case { "string" "char" }   then todo() 
+        case { "table" "table" } then
+            if arg.@compare != nil
+                then return arg.@compare(other)
+                else todo() # 0 if same reference ?
+            end
+        case { "func" "func" } then
+            todo() # 0 if same pointer ? Or always non-zero ?
+        else return false # Mismatched types
+    end
+end
+
+# Used by the `+` operator
+#: a, a -> a
+func add(arg, other) end
+
+#: number -> int
+func floor(arg) end
+
+## Generate a random number in the range [0, 1)
+#: void -> number
+func random() end
+

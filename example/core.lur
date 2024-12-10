@@ -1,177 +1,319 @@
-#! -- Provided by runtime --
-#!
-#! These functions will not be written in Lure-like psuedocode, but they will
-#! be exposed to `std`, or possibly any module.
-#!
-#! Only shown here for documentation purposes.
+#! Standard library for Lure runtime
 
-#: int -> never
-func exit(code) end
+# Some of these functions *may* be moved to `builtin` to improve performance?
+# ^ Probably not
 
-#: any -> string
-func type_of(arg) end
+builtin = require("@builtin")
 
-#: path, int -> { int, int }
-func open(path, mode) end
+# Variable re-exports inherit type signature and doc comments
 
-#: int -> int
-func close(file_handle) end
+## Automatically imported items
+prelude = {
+    io = io
+    sys = sys
+    math = math
 
-#: int, string -> int
-func write(file_handle, text) end
+    exit = sys.exit
+    panic = sys.panic
+    todo = sys.todo
+    assert = sys.assert
 
-#: int -> { int, string }
-func read(file_handle, length) end
+    print = io.print
+    println = io.println
+    File = io.File
 
-# Make sure it doesn't contain a trailing `\r` !
-#: int -> { int, string }
-func read_line(file_handle) end
+    type_of = reflection.type_of
 
-#: { string } -> int
-func system(args) end
+    len = util.len
+    to_string = util.to_string
+    format = util.format
+    is_int = util.is_int
+}
 
-# TODO: idk what to do for files...
+# The `..` operator is used for variadic arguments.
+# Only one is allowed in a function signature, as the last parameter.
+# Given a parameter `..args`, using `args` gives a table of arguments.
+# Passing `..list` or `..{ 3, 4 }` into another function passes every argument
+# individually, instead of passing the whole table.
 
-#: int
-stdout = 0
-#: int
-stdin = 1
-#: int
-stderr = 2
+util = {
+    len = builtin.len
+    to_string = builtin.to_string
+    compare = builtin.compare
 
-# MATCH STATEMENTS ARE USED <HERE> BECAUSE THIS WILL ALL BE WRITTEN IN RUST
-# ANYWAY!! BUT THEY ARE NOT ACTUALLY VALID IN THIS LANGUAGE!!
-
-#: any -> int
-func len(arg)
-    # Something like:
-    match type_of(arg)
-        case "char"   then return 1
-        case "string" then todo() end
-        case "table" then
-            if arg.@len != nil
-                then return arg.@len()
-                else todo()
-            end
-        case "func" then todo() # Argument count maybe ?
-        else return 0 # Or panic
+    ## Format arguments to string
+    ##
+    ## Rust-style formatting
+    ##
+    ## Panics if an error occurs
+    #: string, ..any -> string
+    func format(fmt, ..args)
+        result = try_format(fmt, ..args)
+        if result.err != nil then
+            panic(result.err)
+        end
+        return result.ok
     end
-end
 
-#: any -> string
-func to_string(arg)
-    # Something like:
-    match type_of(arg)
-        case "nil"    then return "nil"
-        case "number" then todo()
-        case "char"   then todo()
-        case "string" then return arg
-        case "bool" then
-            if arg 
-                then return "true"
-                else return "false"
+    # Rename to `format_try` or `format_checked` or something?
+    # A nice naming scheme will place `xyz` and `try_xyz` close alphabetically
+
+    #: string, ..any -> { ok = string } | { err = string }
+    func try_format(fmt, ..args)
+        if fmt == nil then
+            return ""
+        end
+        if type_of(fmt) != "string" then
+            if len(args) > 0 then
+                return { err = "Too many arguments" }
             end
-        case "table" then
-            if arg.@to_string != nil
-                then return arg.@to_string()
-                else todo() # Serialize each item like `{ abc = 123 }`
+            return to_string(fmt)
+        end
+        if len(args) == 0 then
+            return fmt
+        end
+
+        output = ""
+        arg_index = 0
+
+        for i in 0 to len(fmt) do
+            if fmt[i] == "%" then
+                if fmt[i + 1] == "%" then
+                    i = i + 1
+                else
+                    if arg_index >= len(args) then
+                        return { err = "Not enough arguments" }
+                    end
+                    output = output : to_string(args[arg_index])
+                    arg_index = arg_index + 1
+                    continue
+                end
             end
-        case "func"
-            then todo() # Something like `<name@line>`
-        else todo()
+            output = output : fmt[i]
+        end
+
+        if arg_index + 1 < len(args) then
+            return { err = "Too many arguments" }
+        end
+        return output
     end
-end
 
-#: { k = v }, k -> v
-func get(arg, index)
-    # Something like:
-    match type_of(arg)
-        case "string" then todo()
-        case "table" then
-            if arg.@get != nil
-                then return arg.@get(index)
-                else todo()
-            end
-        else panic()
+    ## Return `true` if value is an integer
+    #: any -> bool
+    func is_int(value)
+        return type_of(value) != "number" and value % 1 == 0
     end
-end
+}
 
-#: { int = v }, int, int -> v
-func slice(arg, start, end)
-    # Something like:
-    match type_of(arg)
-        case "string" then todo()
-        case "table" then
-            if arg.@slice != nil
-                then return arg.@slice(start, end)
-                else todo()
-            end
-        else panic()
+## Type reflection
+reflection = {
+    type_of = builtin.type_of
+}
+
+## System
+sys = {
+    # (inherit type signature and doc comments)
+    exit = builtin.exit
+    io = core.io
+
+    # Underscored name is not treated specially by the interpreter, but may
+    # signify a 'private' item to the LSP, developer, or linter
+
+    #: string | nil, string | nil, ..any -> never
+    func _panic_kind(kind, fmt, ..args)
+        if fmt != nil then
+            write(io.stderr, kind : ": ")
+        end
+        write(io.stderr, fmt, ..args)
+        exit(255)
     end
-end
 
-#: { k = v }, k, v -> void
-func set(arg, index, value)
-    # Something like:
-    match type_of(arg)
-        case "string" then todo()
-        case "table" then
-            if arg.@set != nil
-                then return arg.@set(index, value)
-                else todo()
-            end
-        else panic()
+    #: string | nil, ..any -> never
+    func panic(fmt, ..args)
+        _panic_kind("panic", fmt, ..args)
     end
-end
 
-#: { int = v }, v -> void
-func push(arg, value)
-    # Something like:
-    match type_of(arg)
-        case "string" then todo()
-        case "table" then
-            if arg.@push != nil
-                then return arg.@push(index, value)
-                else todo()
-            end
-        else panic()
+    ## Panic with 'to do' message
+    #: string | nil, ..any -> never
+    func todo(fmt, ..args)
+        _panic_kind("todo", fmt, ..args)
     end
-end
 
-# Returns:
-#   -1 if arg < other
-#    0 if arg == other
-#   +1 if arg > other
-#: a, a -> int
-func compare(arg, other)
-    # Something like:
-    match { type_of(arg) type_of(other) }
-        case { "nil" "nil" }       then return 0
-        case { "bool" "bool" }     then todo()
-        case { "number" "number" } then todo() # Near-enough floats should return 0
-        case { "char" "char" }     then todo()
-        case { "string" "string" } then todo()
-        case { "char" "string" }   then todo() 
-        case { "string" "char" }   then todo() 
-        case { "table" "table" } then
-            if arg.@compare != nil
-                then return arg.@compare(other)
-                else todo() # 0 if same reference ?
-            end
-        case { "func" "func" } then
-            todo() # 0 if same pointer ? Or always non-zero ?
-        else return false # Mismatched types
+    ## Panic with 'assertion failed' message, if condition not met
+    #: bool, string | nil, ..any -> void
+    func assert(condition, fmt, ..args)
+        if condition then
+            return nil
+        end
+        _panic_kind("assertion failed", fmt, ..args)
     end
-end
 
-# Used by the `+` operator
-#: a, a -> a
-func add(arg, other) end
+    #: ..string -> int
+    func command(..args)
+        return builtin.system(args)
+    end
+}
 
-#: number -> int
-func floor(arg) end
+## Input/Output
+io = {
+    ## Standard out
+    #: File
+    stdin  = as File { path = "/dev/stdin" handle = builtin.stdin }
+    ## Standard in
+    #: File
+    stdout = as File { path = "/dev/stdout" handle = builtin.stdout }
+    ## Standard error
+    #: File
+    # TODO: Specify unbuffered
+    stderr = as File { path = "/dev/stderr" handle = builtin.stderr }
 
-## Generate a random number in the range [0, 1)
-#: void -> number
-func random() end
+    ## I/O error
+    Error = {
+        #: int
+        code = 255
+        #: string
+        message = ""
+    }
+
+    ## Open file
+    File = {
+        #: string
+        path = ""
+        #: int
+        handle = -1
+        # put a buffer or something here ideally...
+
+        #: string, string -> { err = Error } | { ok = File }
+        func open(path, mode)
+            result = builtin.open(path, mode)
+            err_code = result[0]
+            handle = result[1]
+            return io._result_from(err_code, as File {
+                path = filename
+                handle = handle
+            })
+        end
+
+        #: File -> { err = Error } | { ok = nil }
+        func close(self)
+            err_code = builtin.close(self.handle)
+            return io._result_from(err_code, nil)
+        end
+
+        func read(self, )
+            todo()
+        end
+
+        ## Read a line from file
+        #: File -> { err = Error } | { ok = string }
+        func read_line(self)
+            result = builtin.read_line(self.handle)
+            err_code = result[0]
+            line = result[1]
+            return io._result_from(err_code, line)
+        end
+
+        ## Write formatted arguments to file, without a newline.
+        #: File, string, ..any -> { err = Error } | { ok = nil }
+        func write(self, fmt, ..args)
+            text = format(fmt, ..args)
+            err_code = builtin.write(self.handle, text)
+            return io._result_from(err_code)
+        end
+
+        # RENAME to be consistent with `read_line` !!!
+        ## Write formatted arguments to file, with a newline.
+        #: File, string, ..any -> { err = Error } | { ok = nil }
+        func write_line(self, fmt, ..args)
+            return write(self, fmt : '\n', ..args)
+        end
+    }
+
+    ## Convert an IO error code to an Error
+    #: int, a -> { err = Error } | { ok = a }
+    func _result_from(code, ok)
+        message =
+        if code == 0 then
+            return { ok = ok }
+        elif code == 1
+            then "Not found"
+        # elif ...
+        else
+            "Unknown error"
+        end
+        return {
+            err = as Error {
+                code = code
+                message = message
+            }
+        }
+    end
+
+    ## Read from stdin
+    #: void -> string
+    func scan_line()
+        result = stdin.read_line()
+        assert(result.err == nil)
+        return result.ok
+    end
+
+    ## Print formatted arguments to stdout, without a newline.
+    #: string, ..any -> void
+    func print(fmt, ..args)
+        assert(stdout.write(fmt, ..args).err == nil)
+    end
+    ## Print formatted arguments to stdout, with a newline.
+    #: string, ..any -> void
+    func println(fmt, ..args)
+        assert(stdout.write(fmt : '\n', ..args).err == nil)
+    end
+
+    ## Print formatted arguments to stderr, without a newline.
+    #: string, ..any -> void
+    func eprint(fmt, ..args)
+        assert(stderr.write(fmt, ..args).err == nil)
+    end
+    ## Print formatted arguments to stderr, with a newline.
+    #: string, ..any -> void
+    func eprintln(fmt, ..args)
+        assert(stderr.write(fmt : '\n', ..args).err == nil)
+    end
+
+    ## Print each argument to stderr, with newline.
+    ##
+    ## Used for debugging.
+    #: ..any -> void
+    func log(..args)
+        i = 0
+        for arg in args do
+            if i > 0 then
+                eprint(" ")
+            end
+            eprint("%", arg)
+            i = i + 1
+        end
+        eprintln()
+    end
+}
+
+## Math(s)
+math = {
+    ## PI
+    PI = 3.141592653589793
+
+    floor = builtin.floor
+    random = builtin.random
+
+    ## Generate a random float in the range [min, max)
+    #: number, number -> number
+    func random_float(min, max)
+        return min + random() * (max - min)
+    end
+
+    ## Generate a random integer in the range [min, max)
+    #: int, int -> int
+    func random_int(min, max)
+        return floor(random_float(min, max))
+    end
+}
 

@@ -1,8 +1,8 @@
 #! Some library module example
 
 # (These are also redudant)
-assert = std.util.assert
-is_int = std.util.is_int
+assert = core.util.assert
+is_int = core.util.is_int
 
 #: a int, b int -> int
 func add(a, b)
@@ -15,7 +15,7 @@ table = {
     nested.key = "value"
 }
 
-PI = std.math.PI
+PI = core.math.PI
 
 fib_memory = {}
 
@@ -76,7 +76,7 @@ Person = {
 
     # `@` signifies an 'overridden' method, kinda...
     # It is exactly the same as a normal method, but implies that other
-    # modules/functions may expect it to exist (such as `std.format` in this
+    # modules/functions may expect it to exist (such as `core.format` in this
     # case)
     # Similar to `__tostring` in Lua (I think)
     # Documentation or type comments cannot be inferred, because a generic
@@ -85,7 +85,7 @@ Person = {
 
     #: Person -> string
     func @to_string(self)
-        return std.format("% is % years old", self.name, self.age)
+        return core.format("% is % years old", self.name, self.age)
     end
 }
 
@@ -122,7 +122,7 @@ Vector = {
 
     #: Vector -> string
     func @to_string(self)
-        return std.format("(%, %)", self.x, self.y)
+        return core.format("(%, %)", self.x, self.y)
     end
 }
 

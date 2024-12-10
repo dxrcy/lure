@@ -22,9 +22,9 @@
 # not in a table-destructuring way, but like lua.
 
 # Implicit imports for every file/module
-std = require("@std") # Or "std"
-print = std.prelude.print
-println = std.prelude.println
+core = require("@core") # Or "core"
+print = core.prelude.print
+println = core.prelude.println
 # and so forth...
 
 # Import a module
