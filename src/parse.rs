@@ -112,7 +112,7 @@ pub enum Expr {
     },
     Table {
         table: TableExpr,
-        template: Option<AssignableChain>,
+        metatable: Option<AccessibleChain>,
     },
     If(IfExpr),
     Func(FuncExpr),
@@ -812,23 +812,24 @@ impl TokenIter {
                 let table = self.expect_table_expr()?;
                 return Ok(Expr::Table {
                     table,
-                    template: None,
+                    metatable: None,
                 });
             }
 
-            // Token::Keyword(Keyword::From) => {
-            //     let origin = self.expect_chain_origin()?;
-            //     let name = self.expect_assignable_chain(origin)?;
-            //     self.expect_keyword(
-            //         Keyword::BraceLeft,
-            //         "Template name must be followed by table",
-            //     )?;
-            //     let table = self.expect_table_expr()?;
-            //     return Ok(Expr::Table {
-            //         table,
-            //         template: Some(name),
-            //     });
-            // }
+            Token::Keyword(Keyword::As) => {
+                let origin = self.expect_ident()?;
+                let name = self.expect_accessible_chain(origin)?;
+                self.expect_keyword(
+                    Keyword::BraceLeft,
+                    "Metatable name must be followed by table",
+                )?;
+                let table = self.expect_table_expr()?;
+                return Ok(Expr::Table {
+                    table,
+                    metatable: Some(name),
+                });
+            }
+
             Token::Keyword(Keyword::If) => {
                 return Ok(Expr::If(self.expect_if_expr()?));
             }

@@ -100,7 +100,7 @@ Vector = {
 
     #: int, int -> Vector
     func new(x, y)
-        return Vector: {
+        return as Vector {
             x = x
             y = y
         }
@@ -114,7 +114,7 @@ Vector = {
     #: Vector, Vector -> Vector
     func @add(self, other)
         # This syntax is similar to Lua's `setmetatable` function
-        return Vector: {
+        return as Vector {
             x = self.x + other.x
             y = self.y + other.y
         }

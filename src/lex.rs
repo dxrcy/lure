@@ -84,6 +84,7 @@ make_keyword! {
     "and" => And,
     "or" => Or,
     "not" => Not,
+    "as" => As,
     :: // Punctuation
     "(" => ParenLeft,
     ")" => ParenRight,

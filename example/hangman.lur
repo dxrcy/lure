@@ -19,8 +19,8 @@ func main(args)
         index = math.random_int(0, len(words))
         word = words[index]
 
-        correct = Set: {}
-        incorrect = Set: {}
+        correct = as Set {}
+        incorrect = as Set {}
 
         while true do
             for .. in 0 to 5 do

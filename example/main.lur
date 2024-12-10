@@ -168,7 +168,7 @@ func main()
 
     log(lib.PI)
 
-    john = lib.Person: {
+    john = as lib.Person {
         name = "John"
         age = 30
     }

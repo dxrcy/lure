@@ -158,14 +158,14 @@ sys = {
 io = {
     ## Standard out
     #: File
-    stdin  = File: { path = "/dev/stdin" handle = core.stdin }
+    stdin  = as File { path = "/dev/stdin" handle = core.stdin }
     ## Standard in
     #: File
-    stdout = File: { path = "/dev/stdout" handle = core.stdout }
+    stdout = as File { path = "/dev/stdout" handle = core.stdout }
     ## Standard error
     #: File
     # TODO: Specify unbuffered
-    stderr = File: { path = "/dev/stderr" handle = core.stderr }
+    stderr = as File { path = "/dev/stderr" handle = core.stderr }
 
     ## I/O error
     Error = {
@@ -188,7 +188,7 @@ io = {
             result = core.open(path, mode)
             err_code = result[0]
             handle = result[1]
-            return io._result_from(err_code, File: {
+            return io._result_from(err_code, as File {
                 path = filename
                 handle = handle
             })
@@ -242,7 +242,7 @@ io = {
             "Unknown error"
         end
         return {
-            err = Error: {
+            err = as Error {
                 code = code
                 message = message
             }
