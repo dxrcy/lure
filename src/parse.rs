@@ -974,6 +974,25 @@ impl TokenIter {
 
         loop {
             match self.peek() {
+                Token::Keyword(Keyword::Comma) => {
+                    return Err(unexpected!(
+                        self.line(),
+                        Keyword::Comma,
+                        [
+                            Keyword::BraceRight,
+                            "literal or identifier with `=`",
+                            "expression",
+                            "function",
+                        ],
+                        "Tables do not use commas to separate entries",
+                    ));
+                }
+
+                Token::Keyword(Keyword::BraceRight) => {
+                    self.next();
+                    break;
+                }
+
                 Token::Keyword(Keyword::Spread) => {
                     self.next();
                     let origin = self.expect_ident()?;
@@ -987,26 +1006,6 @@ impl TokenIter {
                     self.next();
                     let func = self.expect_func_statement()?;
                     table.entries.push(TableEntry::Func(func));
-
-                    match self.peek() {
-                        Token::Keyword(Keyword::Comma) => {
-                            return Err(unexpected!(
-                                self.line(),
-                                Keyword::Comma,
-                                [
-                                    Keyword::BraceRight,
-                                    "literal or identifier with `=`",
-                                    "expression"
-                                ],
-                                "Function table entries must not be followed by a comma",
-                            ))
-                        }
-                        Token::Keyword(Keyword::BraceRight) => {
-                            self.next();
-                            break;
-                        }
-                        _ => (),
-                    }
                 }
 
                 _ => {
@@ -1047,24 +1046,6 @@ impl TokenIter {
                     };
 
                     table.entries.push(entry);
-
-                    match self.next() {
-                        Token::Keyword(Keyword::Comma) => {
-                            if self.peek() == &Token::Keyword(Keyword::BraceRight) {
-                                self.next();
-                                break;
-                            }
-                        }
-                        Token::Keyword(Keyword::BraceRight) => break,
-                        token => {
-                            return Err(unexpected!(
-                                self.line(),
-                                token.to_owned(),
-                                [Keyword::Comma, Keyword::BraceRight],
-                                "Table entries must be separated with commas",
-                            ))
-                        }
-                    }
                 }
             }
         }
