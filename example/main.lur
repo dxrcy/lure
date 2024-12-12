@@ -5,7 +5,7 @@
 # Procedural logic must happen in functions
 # `main` will get called automatically, for the entrypoint file
 
-#[[ This is a block comment
+#( This is a block comment
     A file is a module
     A module contains statements
     A statement can be:
@@ -14,24 +14,35 @@
     - assignment operation
     - loop / conditional
     - expression (incl. function call)
-]]
+)#
+
+# Tables are passed by reference, primatives are passed by value
+# Functions are passed by reference, but are not modifiable anyway
 
 # NO statements/functions are hoisted
 
 # idk should functions be able to return multiple values ? 
 # not in a table-destructuring way, but like lua.
 
+# This item is an item in the module table (and accessible to the current scope)
+x = 1
+# This item is accessible to the current scope (and child scopes), it is not
+# added to the module table
+use y = 2
+# ^ Maybe use `with` instead of `use`
+
 # Implicit imports for every file/module
-core = require("@core") # Or "core"
-print = core.prelude.print
-println = core.prelude.println
+use core = require("@core") # Or "core"
+use math = core.math
+use print = core.prelude.print
+use println = core.prelude.println
 # and so forth...
 
 # Import a module
 # Executes module when `require` expression is run
 # This will run any module-level statements
-lib = require("lib")
-add = lib.add
+use lib = require("lib")
+use add = lib.add
 
 func main()
     println("Hello World")
@@ -39,14 +50,12 @@ func main()
     # All variables and items are scoped by block
 
     x = 2
-    x = x + 3 # Assignment operators are NOT supported
-    log(x)
+    x = x + 3 # Arithmetic assignment operators (eg. `+=`) are NOT supported
+    log(x) # Debug log function from `core`
 
     # No such thing as 'redeclarations' (except using type comments I suppose)
+    # 'Shadowing' is not a thing. It is just a redefinition
     x = 4
-
-    y = 4  # Throws error as y is not yet declared
-            # This might be a bad idea
 
     if x > 3 then
         println("> 3")
@@ -84,21 +93,22 @@ func main()
 
     s = "abc"
     log(s)
-    s2 = s : "def" # Concatenation operator is undecided (cannot use `..`)
+    s2 = s : "def" # Concatenation operator is undecided (cannot be `..`)
     log(s, s2)
 
+    # Tables NEVER use commas in between values
+    list = { 4 5 6 }
+    log(len(list))
+
     # Simple range for-loop
-    for i in 0 to 10 do # Always inclusive to exclusive
+    # Note that the `to` keyword is specific to for loops. It does NOT create a
+    # 'range' or 'iterator' object
+    for #(:int)# i in 0 to 10 do # Always inclusive to exclusive
         log(i) # 0, 1, ... 9
     end
     for i in 0 to len(list) do
         println("%: %\n", i, list[i])
     end
-
-    # Tables NEVER use commas in between values
-    list = { 4 5 6 }
-
-    log(len(list))
 
     # Maybe use different syntax for key/value binding
     # Shouldn't use `i: value` unfortunately. Not consistent with dict literals
@@ -117,15 +127,15 @@ func main()
     # `.. = value` is invalid. Use simply `value`
 
     dict = {
-        a = 1
-        b = 2
+        a = 7
+        b = 8
     }
 
     for value in dict do
-        println("%\n", value) # 1, 2
+        println("%\n", value) # 7, 8
     end
     for key = value in dict do
-        println("%: %\n", key, value) # a: 1, b: 2
+        println("%: %\n", key, value) # a: 7, b: 8
     end
     for key = .. in dict do
         println("%\n", value) # a, b
@@ -135,7 +145,7 @@ func main()
         4       # Implicitly `0 = 4`
         a = 5
         # if `6` was here it would be implicitly `1 = 6`
-        # (1 is the lowest non-negative number not already used as a key)
+        # (1 is the lowest non-negative integer not already used as a key)
     }
 
     for value in mixed do

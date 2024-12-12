@@ -3,7 +3,7 @@
 # Some of these functions *may* be moved to `builtin` to improve performance?
 # ^ Probably not
 
-builtin = require("@builtin")
+builtin = require("@builtin") # NOT implicit
 
 # Variable re-exports inherit type signature and doc comments
 
@@ -50,7 +50,7 @@ util = {
     func format(fmt, ..args)
         result = try_format(fmt, ..args)
         if result.err != nil then
-            panic(result.err)
+            prelude.panic(result.err)
         end
         return result.ok
     end
@@ -68,9 +68,6 @@ util = {
                 return { err = "Too many arguments" }
             end
             return to_string(fmt)
-        end
-        if len(args) == 0 then
-            return fmt
         end
 
         output = ""
@@ -114,17 +111,16 @@ reflection = {
 sys = {
     # (inherit type signature and doc comments)
     exit = builtin.exit
-    io = core.io
 
     # Underscored name is not treated specially by the interpreter, but may
     # signify a 'private' item to the LSP, developer, or linter
 
     #: string | nil, string | nil, ..any -> never
     func _panic_kind(kind, fmt, ..args)
-        if fmt != nil then
-            write(io.stderr, kind : ": ")
+        prelude.write(io.stderr, kind)
+        if fmt != nil and fmt != "" then
+            prelude.write(io.stderr, ": " : fmt, ..args)
         end
-        write(io.stderr, fmt, ..args)
         exit(255)
     end
 
@@ -156,10 +152,10 @@ sys = {
 
 ## Input/Output
 io = {
-    ## Standard out
+    ## Standard output
     #: File
     stdin  = as File { path = "/dev/stdin" handle = builtin.stdin }
-    ## Standard in
+    ## Standard input
     #: File
     stdout = as File { path = "/dev/stdout" handle = builtin.stdout }
     ## Standard error
@@ -195,19 +191,19 @@ io = {
         end
 
         #: File -> { err = Error } | { ok = nil }
-        func close(self)
-            err_code = builtin.close(self.handle)
+        func close(file)
+            err_code = builtin.close(file.handle)
             return io._result_from(err_code, nil)
         end
 
-        func read(self, )
+        func read(file, )
             todo()
         end
 
         ## Read a line from file
         #: File -> { err = Error } | { ok = string }
-        func read_line(self)
-            result = builtin.read_line(self.handle)
+        func read_line(file)
+            result = builtin.read_line(file.handle)
             err_code = result[0]
             line = result[1]
             return io._result_from(err_code, line)
@@ -215,17 +211,17 @@ io = {
 
         ## Write formatted arguments to file, without a newline.
         #: File, string, ..any -> { err = Error } | { ok = nil }
-        func write(self, fmt, ..args)
-            text = format(fmt, ..args)
-            err_code = builtin.write(self.handle, text)
+        func write(file, fmt, ..args)
+            text = prelude.format(fmt, ..args)
+            err_code = builtin.write(file.handle, text)
             return io._result_from(err_code)
         end
 
         # RENAME to be consistent with `read_line` !!!
         ## Write formatted arguments to file, with a newline.
         #: File, string, ..any -> { err = Error } | { ok = nil }
-        func write_line(self, fmt, ..args)
-            return write(self, fmt : '\n', ..args)
+        func write_line(file, fmt, ..args)
+            return write(file, fmt : '\n', ..args)
         end
     }
 
@@ -233,14 +229,14 @@ io = {
     #: int, a -> { err = Error } | { ok = a }
     func _result_from(code, ok)
         message =
-        if code == 0 then
-            return { ok = ok }
-        elif code == 1
-            then "Not found"
-        # elif ...
-        else
-            "Unknown error"
-        end
+            if code == 0 then
+                return { ok = ok }
+            elif code == 1 then
+                "Not found"
+            # elif ...
+            else
+                "Unknown error"
+            end
         return {
             err = as Error {
                 code = code
@@ -253,30 +249,30 @@ io = {
     #: void -> string
     func scan_line()
         result = stdin.read_line()
-        assert(result.err == nil)
+        prelude.assert(result.err == nil)
         return result.ok
     end
 
     ## Print formatted arguments to stdout, without a newline.
     #: string, ..any -> void
     func print(fmt, ..args)
-        assert(stdout.write(fmt, ..args).err == nil)
+        prelude.assert(stdout:write(fmt, ..args).err == nil)
     end
     ## Print formatted arguments to stdout, with a newline.
     #: string, ..any -> void
     func println(fmt, ..args)
-        assert(stdout.write(fmt : '\n', ..args).err == nil)
+        prelude.assert(stdout:write(fmt : '\n', ..args).err == nil)
     end
 
     ## Print formatted arguments to stderr, without a newline.
     #: string, ..any -> void
     func eprint(fmt, ..args)
-        assert(stderr.write(fmt, ..args).err == nil)
+        prelude.assert(stderr:write(fmt, ..args).err == nil)
     end
     ## Print formatted arguments to stderr, with a newline.
     #: string, ..any -> void
     func eprintln(fmt, ..args)
-        assert(stderr.write(fmt : '\n', ..args).err == nil)
+        prelude.assert(stderr:write(fmt : '\n', ..args).err == nil)
     end
 
     ## Print each argument to stderr, with newline.
