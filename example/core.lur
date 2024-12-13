@@ -86,7 +86,7 @@ util = {
                     continue
                 end
             end
-            output = output : fmt[i]
+            output = output | fmt[i]
         end
 
         if arg_index + 1 < len(args) then
@@ -119,7 +119,7 @@ sys = {
     func _panic_kind(kind, fmt, ..args)
         prelude.write(io.stderr, kind)
         if fmt != nil and fmt != "" then
-            prelude.write(io.stderr, ": " : fmt, ..args)
+            prelude.write(io.stderr, ": " | fmt, ..args)
         end
         exit(255)
     end
@@ -196,7 +196,7 @@ io = {
             return io._result_from(err_code, nil)
         end
 
-        func read(file, )
+        func read(file)
             todo()
         end
 
@@ -221,7 +221,7 @@ io = {
         ## Write formatted arguments to file, with a newline.
         #: File, string, ..any -> { err = Error } | { ok = nil }
         func write_line(file, fmt, ..args)
-            return write(file, fmt : '\n', ..args)
+            return write(file, fmt | "\n", ..args)
         end
     }
 
@@ -261,7 +261,7 @@ io = {
     ## Print formatted arguments to stdout, with a newline.
     #: string, ..any -> void
     func println(fmt, ..args)
-        prelude.assert(stdout:write(fmt : '\n', ..args).err == nil)
+        prelude.assert(stdout:write(fmt | "\n", ..args).err == nil)
     end
 
     ## Print formatted arguments to stderr, without a newline.
@@ -272,7 +272,7 @@ io = {
     ## Print formatted arguments to stderr, with a newline.
     #: string, ..any -> void
     func eprintln(fmt, ..args)
-        prelude.assert(stderr:write(fmt : '\n', ..args).err == nil)
+        prelude.assert(stderr:write(fmt | "\n", ..args).err == nil)
     end
 
     ## Print each argument to stderr, with newline.

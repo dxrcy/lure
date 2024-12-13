@@ -31,9 +31,9 @@ func main(args)
             is_win = true
             for ch in word do
                 if correct.contains(ch) then
-                    visible = visible : ch
+                    visible = visible | ch
                 else
-                    visible = visible : '_'
+                    visible = visible | "_"
                     is_win = false
                 end
             end
@@ -85,10 +85,12 @@ func read_file_lines(filename)
 
     lines = {}
     while true do
-        err, line = file.read_line()
-        if err != nil then
+        result = file.read_line()
+        if result.err != nil then
             return nil
         end
+        line = result.ok
+
         if len(line) < 1 then
             break
         end
@@ -120,9 +122,9 @@ Set = {
         output = ""
         for item in self.items do
             if len(output) > 0 then
-                output = output : ", "
+                output = output | ", "
             end
-            output = output : item
+            output = output | item
         end
         return output
     end

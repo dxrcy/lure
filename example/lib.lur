@@ -6,13 +6,13 @@ is_int = core.util.is_int
 
 #: a int, b int -> int
 func add(a, b)
-    return a + b
+    return a + (b)
 end
 
 table = {
     key = "value"
     # Maybe this will be supported ??
-    nested.key = "value"
+    # nested.key = "value"
 }
 
 PI = core.math.PI
@@ -47,6 +47,11 @@ func map(table, fun)
     end
     return table
 end
+
+a = {
+    -2
+    -3
+}
 
 # Metatables TODO: Choose a better name
 #
@@ -130,7 +135,7 @@ func vector_example()
     # Using helper method
     a = Vector.new(3, 4)
     # Manually setting metatable
-    b = Vector: { 5 6 }
+    b = as Vector { 5 6 }
 
     print(a + b) # (8, 10)
 
